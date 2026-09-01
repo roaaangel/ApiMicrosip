@@ -1,0 +1,57 @@
+# --- Herramientas de Construcción (Build Tools) ---
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.next
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- Entornos de Desarrollo (IDEs) ---
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.metadata/
+.classpath
+.project
+.settings/
+*.launch
+bin/
+
+# NetBeans
+**/nbproject/private/
+**/nbbuild/
+**/dist/
+**/nbproject/maven-pom.xml
+# Google Cloud credentials
+src/main/resources/serviceAccountKey.json
+
+
+# Visual Studio Code
+.vscode/
+
+# --- Configuraciones del Sistema y Logs ---
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# --- Archivos de Configuración Sensibles (Opcional) ---
+# Descomenta las siguientes líneas si manejas credenciales locales
+# .env
+# src/main/resources/application-local.properties
+

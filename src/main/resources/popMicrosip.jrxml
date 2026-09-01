@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.17.0.final using JasperReports Library version 6.17.0-6d93193241dd8cc42629e188b94f9e0bc5722efd  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="corteAgente" pageWidth="595" pageHeight="864" whenNoDataType="NoPages" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="2501ca5d-6086-4882-8f31-f7d66270c0f2">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<subDataset name="DatasetPOPDetalle" uuid="85c0520e-ac67-44ea-a005-9923ec38490f">
+		<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+		<field name="id" class="java.lang.Integer"/>
+		<field name="popTrimestralId" class="java.lang.Integer"/>
+		<field name="doctoCCId" class="java.lang.Integer"/>
+		<field name="folioDoctofuente" class="java.lang.String"/>
+		<field name="fechaElaboracionDoctofuente" class="java.lang.String"/>
+		<field name="horaElaboracionDoctofuente" class="java.lang.String"/>
+		<field name="fechaUltimoPago" class="java.lang.String"/>
+		<field name="importeSinImpuestos" class="java.lang.Double"/>
+	</subDataset>
+	<parameter name="NOMBRE" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="clienteId" class="java.lang.Integer"/>
+	<field name="claveCliente" class="java.lang.String"/>
+	<field name="nombreCliente" class="java.lang.String"/>
+	<field name="importeSinImpuestos" class="java.lang.Double"/>
+	<field name="tipoCliente" class="java.lang.String"/>
+	<field name="diasPlazo" class="java.lang.Integer"/>
+	<field name="sumatoriaDiasTardadosDocumentos" class="java.lang.Integer"/>
+	<field name="numeroDocumentos" class="java.lang.Integer"/>
+	<field name="promedioPonderado" class="java.lang.Double"/>
+	<field name="importePOPGanado" class="java.lang.Double"/>
+	<field name="listaCobranzaXCliente" class="java.util.ArrayList"/>
+	<title>
+		<band height="61" splitType="Stretch">
+			<staticText>
+				<reportElement x="0" y="0" width="555" height="40" uuid="75f6b57c-df54-4f80-8ff2-d888779953c1"/>
+				<textElement textAlignment="Center">
+					<font size="30"/>
+				</textElement>
+				<text><![CDATA[Reporte POP]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement key="textField" x="0" y="40" width="380" height="20" uuid="e14bab78-6e38-4ef1-8b06-ea7fee255553">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+				<textElement verticalAlignment="Top">
+					<font size="12" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Nombre: "]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<detail>
+		<band height="81">
+			<staticText>
+				<reportElement mode="Opaque" x="305" y="2" width="104" height="18" forecolor="#FFFFFF" backcolor="#2980B9" uuid="9621c8c3-4e05-44f9-9aef-dfd5be16b36d"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Sum días
+]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="409" y="2" width="131" height="18" forecolor="#FFFFFF" backcolor="#2980B9" uuid="e9490dae-31b9-44a8-bb28-9a2dfbbbac09"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[POP]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="2" width="116" height="18" forecolor="#FFFFFF" backcolor="#2980B9" uuid="094c74ab-4d7c-4994-b2ac-92d822fb286e">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Cliente]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="116" y="2" width="96" height="18" forecolor="#FFFFFF" backcolor="#2980B9" uuid="0c6fd904-5ca7-4972-9767-e5b45e2afe24"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Importe]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="212" y="2" width="93" height="18" forecolor="#FFFFFF" backcolor="#2980B9" uuid="35e4b360-8925-4c3f-9e35-4c0da7c95018"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Tipo]]></text>
+			</staticText>
+			<componentElement>
+				<reportElement x="0" y="60" width="459" height="21" uuid="ee87b820-92ee-4c8e-957e-12d8d2b7e286"/>
+				<jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd" printOrder="Vertical">
+					<datasetRun subDataset="DatasetPOPDetalle" uuid="19114973-9aa0-4fb1-89ca-ecd7e2a3742f">
+						<dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource($F{listaCobranzaXCliente})]]></dataSourceExpression>
+					</datasetRun>
+					<jr:listContents height="21" width="459">
+						<textField>
+							<reportElement x="0" y="1" width="100" height="20" uuid="a15cf375-d642-4848-8750-53e17947e2cf"/>
+							<textElement markup="styled"/>
+							<textFieldExpression><![CDATA[$F{folioDoctofuente}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="98" y="1" width="180" height="20" uuid="3bc9558e-e23b-4500-b668-37f439ff40b0"/>
+							<textFieldExpression><![CDATA[$F{fechaElaboracionDoctofuente}]]></textFieldExpression>
+						</textField>
+						<textField pattern="¤#,##0.00;¤-#,##0.00" isBlankWhenNull="false">
+							<reportElement x="364" y="1" width="92" height="20" uuid="b50744f4-7f4d-489e-be8c-fd91716519b9"/>
+							<textElement textAlignment="Right"/>
+							<textFieldExpression><![CDATA[$F{fechaUltimoPago}]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement x="276" y="1" width="90" height="20" uuid="144742cd-981d-43e3-9e65-ceb80c2831ea"/>
+							<textElement textAlignment="Center"/>
+							<textFieldExpression><![CDATA[$F{horaElaboracionDoctofuente}]]></textFieldExpression>
+						</textField>
+					</jr:listContents>
+				</jr:list>
+			</componentElement>
+			<staticText>
+				<reportElement mode="Opaque" x="100" y="42" width="180" height="18" forecolor="#FFFFFF" backcolor="#9E9E9E" uuid="fb9d183e-da25-41e1-bd32-277dd0a82b86"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Artículo]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="370" y="42" width="93" height="18" forecolor="#FFFFFF" backcolor="#9E9E9E" uuid="a8f5fbfc-2d20-44f4-9be5-f277a131a173"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Precio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="42" width="100" height="18" forecolor="#FFFFFF" backcolor="#9E9E9E" uuid="d43791f5-2911-4579-8901-c394da39c34d">
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Código]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="280" y="42" width="90" height="18" forecolor="#FFFFFF" backcolor="#9E9E9E" uuid="3007ee76-deea-4eaf-b6c1-efdff8a7618e"/>
+				<textElement textAlignment="Center">
+					<font size="12"/>
+				</textElement>
+				<text><![CDATA[Cantidad]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="0" y="20" width="116" height="20" uuid="3bfaf000-1e9b-4331-a927-69baf6080e4d"/>
+				<textFieldExpression><![CDATA[$F{nombreCliente}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="116" y="20" width="96" height="20" uuid="118ce4de-4cd3-4b17-ad0c-f4fb3cbc439d"/>
+				<textFieldExpression><![CDATA[$F{importeSinImpuestos}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="212" y="20" width="92" height="20" uuid="72448029-1210-46b3-aa46-5f8a5d86b72d"/>
+				<textFieldExpression><![CDATA[$F{tipoCliente}]]></textFieldExpression>
+			</textField>
+			<textField pattern="¤#,##0.00;¤-#,##0.00">
+				<reportElement x="305" y="20" width="104" height="20" uuid="e9416578-f743-40f2-a93a-9c113638fb83"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{sumatoriaDiasTardadosDocumentos}]]></textFieldExpression>
+			</textField>
+			<textField pattern="¤#,##0.00;¤-#,##0.00">
+				<reportElement x="409" y="20" width="130" height="20" uuid="c9b4055d-9f08-418c-a48e-f1529bbc58c1"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{importePOPGanado}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="39" splitType="Stretch">
+			<textField>
+				<reportElement x="0" y="1" width="555" height="30" uuid="0e7070e7-5f05-404c-ae82-c3eef5c2c90f">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.x" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="42" splitType="Stretch"/>
+	</summary>
+</jasperReport>
