@@ -1,6 +1,8 @@
 package com.app.dao;
 
 import com.app.contants.Constants;
+import com.app.models.AbonoDetalleEntity;
+import com.app.models.AbonoMaestroEntity;
 import com.app.models.AgenteCobranza;
 import com.app.models.ArticuloMensaje;
 import com.app.models.ArticuloPromedioVenta45;
@@ -8,6 +10,8 @@ import com.app.models.ClienteConsignatario;
 import com.app.models.ClienteDireccionPrincipal;
 import com.app.models.ClienteEmiteFactura;
 import com.app.models.CobradorSucursal;
+import com.app.models.ComplementoXml;
+import com.app.models.ComplementoXmlDetalle;
 import com.app.models.ConfiguracionAlmacen;
 import com.app.models.ConfiguracionCliente;
 import com.app.models.ConfiguracionMobil;
@@ -34,6 +38,9 @@ import com.app.models.articulos.ArticuloRefactor;
 import com.app.models.clientes.ClienteRefactor;
 import com.app.models.cobradores.Cobrador;
 import com.app.models.cobranza.CobranzaRefactor;
+import com.app.models.cobrosmicrosip.CobroMicrosip;
+import com.app.models.cobrosxdepositar.CobroXDepositar;
+import com.app.models.cobrosxdepositar.CobroXDepositarEnviado;
 import com.app.models.datosempresa.DatosEmpresa;
 import com.app.models.metodospago.MetodoPago;
 import com.app.models.promociones.Promocion;
@@ -43,6 +50,7 @@ import com.app.servicios.Resources;
 import com.app.utilerias.ResponseRequest;
 import com.app.utilerias.Utileria;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -50,6 +58,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -65,6 +74,7 @@ import java.util.Locale;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2619,5 +2629,444 @@ public class RepositorioDAO {
             porcentajeDescuentoTotal = detallePedido.getPorcentaje_descuento_articulo_cliente();
         
         return porcentajeDescuentoTotal;
+    }
+    
+    public ResponseRequest createCobrosXDepositarIndividual(String jsonString) {
+        logger.info("Entrando a crear la cobranza:");
+        logger.info("Estos abonos se reciben crear: " + jsonString);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<CobroXDepositarEnviado> listaCobroXDepositarEnviados = new ArrayList<>();
+
+        // Se pide la conexión al pool de HikariCP dentro del try-with-resources
+        try (Connection conexion = FirebirdConnector.getConnection()) {
+
+            if (conexion == null) {
+                return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "No se pudo obtener conexión con Firebird");
+            }
+
+            ConfiguracionMobil configuracionMobil = configuracionMicrosip();
+
+            Type type = new TypeToken<CobroXDepositar>(){}.getType();
+            CobroXDepositar cobroXDepositar = new Gson().fromJson(jsonString, type);
+
+            // Procesamiento individual por cada abono
+            for (AbonoMaestroEntity abonoMaestroEntity : cobroXDepositar.getListaAbonosParaMicrosip()) {
+
+                conexion.setAutoCommit(false); // Inicia transacción para el elemento actual
+
+                // Pasamos la conexión activa al submétodo
+                ResponseRequest responseRequestItem = createCobroXDepositar(conexion, configuracionMobil, abonoMaestroEntity);
+
+                CobroXDepositarEnviado cobroXDepositarEnviado = new CobroXDepositarEnviado();
+                cobroXDepositarEnviado.setId(abonoMaestroEntity.getId());
+
+                if (responseRequestItem.getStatus() == ResponseRequest.DataStatus.OK) {
+                    cobroXDepositarEnviado.setStatus(ResponseRequest.DataStatus.OK);
+                    cobroXDepositarEnviado.setMensaje("");
+
+                    conexion.commit(); // Confirma solo este abono
+                } else {
+                    String data = (String) responseRequestItem.getData();
+
+                    cobroXDepositarEnviado.setStatus(ResponseRequest.DataStatus.ERROR);
+                    cobroXDepositarEnviado.setMensaje(data);
+
+                    conexion.rollback(); // Revierte solo este abono
+                }
+
+                listaCobroXDepositarEnviados.add(cobroXDepositarEnviado);
+            }
+
+            // Si se controla folio/serie, se actualiza en su propia transacción
+            if (configuracionMobil.getControlaSerieFolioCXC() == 1) {                
+                actualizarSerieFolioCXC(conexion, cobroXDepositar.getSerieFolioCXC());                    
+            }
+
+            return responseRequest.response(ResponseRequest.DataStatus.OK, listaCobroXDepositarEnviados, "Cobros x depositar enviados al servidor");
+
+        } catch (JsonSyntaxException e) {
+            logger.error("Error al deserializar JSON en createCobrosXDepositarIndividual: " + e.getMessage(), e);
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error en el formato del JSON recibido");
+        } catch (SQLException e) {
+            logger.error("Excepción SQL en createCobrosXDepositarIndividual: " + e.getMessage(), e);
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al procesar cobros por depositar: " + e.getMessage());
+        }
+    }
+    
+    private ResponseRequest createCobroXDepositar(Connection conexion, ConfiguracionMobil configuracionMobil, AbonoMaestroEntity abonoMaestroEntity) {
+        String errorMessage = "CTE: " + abonoMaestroEntity.getClaveCliente();
+        
+        Utilerias utilerias = new Utilerias();
+        ResponseRequest responseRequest = new ResponseRequest();
+        ComplementoXml complementoXml = new ComplementoXml();
+
+        int idAutoIncremental = 0;
+        int folioUltimo = 0;
+        int lugarExpedicionId = 0;
+
+        try {
+            // 1. Obtener ID autoincremental para DOCTOS_CC
+            String sqlGenId = "SELECT GEN_ID(ID_DOCTOS, 1) AS ID FROM RDB$DATABASE";
+            try (PreparedStatement ps = conexion.prepareStatement(sqlGenId);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    idAutoIncremental = rs.getInt("ID");
+                }
+            }
+
+            // 2. Obtener folio temporal
+            String sqlGenFolio = "SELECT GEN_ID(ID_FOLIO_TEMP, 1) AS ID FROM RDB$DATABASE";
+            try (PreparedStatement ps = conexion.prepareStatement(sqlGenFolio);
+                 ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    folioUltimo = rs.getInt("ID");
+                }
+            }
+
+            // 3. Obtener LUGAR_EXPEDICION_ID
+            String sqlSucursal = "SELECT LUGAR_EXPEDICION_ID FROM SUCURSALES WHERE SUCURSAL_ID = ?";
+            try (PreparedStatement ps = conexion.prepareStatement(sqlSucursal)) {
+                ps.setInt(1, configuracionMobil.getSucursalId());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        lugarExpedicionId = rs.getInt("LUGAR_EXPEDICION_ID");
+                    }
+                }
+            }
+
+            // 4. Inserción parametrizada en DOCTOS_CC
+            String queryDoctosCC = 
+                "INSERT INTO DOCTOS_CC(" +
+                "DOCTO_CC_ID, CONCEPTO_CC_ID, FOLIO, NATURALEZA_CONCEPTO, FECHA, HORA, FECHA_HORA_PAGO, CLAVE_CLIENTE, " +
+                "IMPORTE_COBRO, CLIENTE_ID, TIPO_CAMBIO, CANCELADO, APLICADO, DESCRIPCION, COBRADOR_ID, FORMA_EMITIDA, " +
+                "CONTABILIZADO, CONTABILIZADO_GYP, COND_PAGO_ID, SISTEMA_ORIGEN, ESTATUS, ESTATUS_ANT, ES_CFD, TIENE_ANTICIPO, " +
+                "MODALIDAD_FACTURACION, ENVIADO, FECHA_HORA_ENVIO, CFDI_CERTIFICADO, INTEG_BA, CONTABILIZADO_BA, " +
+                "LUGAR_EXPEDICION_ID, FECHA_APLICACION, SUCURSAL_ID) " +
+                "VALUES(";
+
+            queryDoctosCC = queryDoctosCC + idAutoIncremental + ", ";
+            queryDoctosCC = queryDoctosCC + configuracionMobil.getConceptoCCId() + ", ";
+            queryDoctosCC = queryDoctosCC + "'Z" + StringUtils.leftPad(String.valueOf(folioUltimo), 8, "0") + "', ";
+            queryDoctosCC = queryDoctosCC + "'R', ";
+            queryDoctosCC = queryDoctosCC + "'" + abonoMaestroEntity.getFechaAbono() + "', ";
+            queryDoctosCC = queryDoctosCC + "'" + abonoMaestroEntity.getHoraAbono() + "', ";
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            String fechaCRPRaw = abonoMaestroEntity.getFechaCRP(); // "1786838400000"
+
+            String fechaFormateada = null;
+            if (fechaCRPRaw != null && !fechaCRPRaw.trim().isEmpty()) {
+                long millis = Long.parseLong(fechaCRPRaw);
+                Date fecha = new Date(millis);
+                fechaFormateada = sdf.format(fecha);
+            }
+
+            String fechaCRP = (fechaFormateada == null)
+                    ? "NULL, "
+                    : "'" + fechaFormateada + "', ";
+
+            queryDoctosCC = queryDoctosCC + fechaCRP;
+
+            queryDoctosCC = queryDoctosCC + "'" + abonoMaestroEntity.getClaveCliente() + "', ";
+            queryDoctosCC = queryDoctosCC + "0.00, ";
+            queryDoctosCC = queryDoctosCC + abonoMaestroEntity.getClienteId() + ", ";
+            queryDoctosCC = queryDoctosCC + "1.00, ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'" + abonoMaestroEntity.getDescripcion() + "', ";
+            queryDoctosCC = queryDoctosCC + abonoMaestroEntity.getCobradorId() + ", ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + configuracionMobil.getCondicionPagoId() + ", ";
+            queryDoctosCC = queryDoctosCC + "'CC', ";
+            queryDoctosCC = queryDoctosCC + "'P', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'PREIMP', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "CURRENT_TIMESTAMP, ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + "'N', ";
+            queryDoctosCC = queryDoctosCC + lugarExpedicionId + ", ";
+            queryDoctosCC = queryDoctosCC + "'" + abonoMaestroEntity.getFechaAbono() + "', ";
+
+            if (configuracionMobil.getOperaSucursalAlmacen() == 1) {
+                logger.info("MOBIL sucursalId: " + abonoMaestroEntity.getSucursalId());
+                queryDoctosCC = queryDoctosCC + abonoMaestroEntity.getSucursalId() + ") ";
+            } else {
+                logger.info("CONFIGURACION MOBIL sucursalId: " + configuracionMobil.getSucursalId());
+                queryDoctosCC = queryDoctosCC + configuracionMobil.getSucursalId() + ") ";
+            }
+                             
+            try (PreparedStatement ps = conexion.prepareStatement(queryDoctosCC)) {               
+                int filasAfectadas = ps.executeUpdate();
+            }
+
+            logger.info("Save table [DOCTOS_CC] id: " + idAutoIncremental + " folio: " + "Z" + StringUtils.leftPad(String.valueOf(folioUltimo), 8, "0"));                
+
+            complementoXml.setDoctoCCId(idAutoIncremental);
+            complementoXml.setClienteId(abonoMaestroEntity.getClienteId());
+            complementoXml.setFechaHoraEnvioTimestamp(utilerias.getNowDateHourTimestamp());
+            complementoXml.setFechaDate(convertTimestampToDate(utilerias.getNowDateHourTimestamp()));
+
+            // 5. Inserción en FORMAS_COBRO_DOCTOS
+            String sqlInsertFormasCobro = 
+                "INSERT INTO FORMAS_COBRO_DOCTOS " +
+                "(FORMA_COBRO_DOC_ID, NOM_TABLA_DOCTOS, DOCTO_ID, FORMA_COBRO_ID, NUM_CTA_PAGO, CLAVE_SIS_FORMA_COB, REFERENCIA, IMPORTE) " +
+                "VALUES(-1, 'DOCTOS_CC', ?, ?, '', 'CC', ?, 0.00)";
+
+            try (PreparedStatement ps = conexion.prepareStatement(sqlInsertFormasCobro)) {
+                ps.setInt(1, idAutoIncremental);
+                ps.setInt(2, abonoMaestroEntity.getFormaCobroCCId());
+                ps.setString(3, "Abono: $" + abonoMaestroEntity.getAbonoTotal());
+                ps.executeUpdate();
+            }
+
+            complementoXml.setFormaCobroId(abonoMaestroEntity.getFormaCobroCCId());
+            logger.info("Save tabla [FORMAS_COBRO_DOCTOS]");
+
+            // 6. Inserción en IMPORTES_DOCTOS_CC y validación de complementos
+            List<ComplementoXmlDetalle> listaComplementoXmlDetalle = new ArrayList<>();
+
+            String sqlInsertImportes = 
+                "INSERT INTO IMPORTES_DOCTOS_CC(IMPTE_DOCTO_CC_ID, DOCTO_CC_ID, FECHA, CANCELADO, APLICADO, ESTATUS, " +
+                "TIPO_IMPTE, DOCTO_CC_ACR_ID, IMPORTE, IMPUESTO, IVA_RETENIDO, ISR_RETENIDO, DSCTO_PPAG, PCTJE_COMIS_COB) " +
+                "VALUES(-1, ?, ?, 'N', 'N', 'P', 'R', ?, ?, 0.00, 0.00, 0.00, 0.00, 0.00)";
+
+            try (PreparedStatement psImportes = conexion.prepareStatement(sqlInsertImportes)) {
+                for (AbonoDetalleEntity abonoDetalleEntity : abonoMaestroEntity.getAbonoDetalleEntity()) {
+                    psImportes.setInt(1, idAutoIncremental);
+                    psImportes.setDate(2, utilerias.convertStringToDate(abonoMaestroEntity.getFechaAbono()));
+                    psImportes.setInt(3, abonoDetalleEntity.getDoctoCCId());
+                    psImportes.setDouble(4, abonoDetalleEntity.getImporteAbono());
+                    psImportes.executeUpdate();
+
+                    logger.info("Save tabla [IMPORTES_DOCTOS_CC]");
+
+                    String requiereComplementoPagos = cargoRequiereComplementoPagos(conexion, abonoDetalleEntity.getDoctoCCId());
+                    logger.info("[cargoRequiereComplementoPagos] {} {}", abonoDetalleEntity.getDoctoCCId(), requiereComplementoPagos);
+
+                    if ("S".equals(requiereComplementoPagos != null ? requiereComplementoPagos.trim() : "")) {
+                        ComplementoXmlDetalle complementoXmlDetalle = new ComplementoXmlDetalle();
+                        complementoXmlDetalle.setDoctoCCPadreId(abonoDetalleEntity.getDoctoCCId());
+                        complementoXmlDetalle.setImporteAbono(abonoDetalleEntity.getImporteAbono());
+                        listaComplementoXmlDetalle.add(complementoXmlDetalle);
+                    }
+                }
+            }
+
+            // 7. Actualización de DOCTOS_CC
+            double importeTotal = listaComplementoXmlDetalle.stream()
+                    .mapToDouble(ComplementoXmlDetalle::getImporteAbono)
+                    .sum();
+
+            if (importeTotal > 0) {
+                String sqlUpdateDoctos = "UPDATE DOCTOS_CC SET APLICADO = 'S', MODALIDAD_FACTURACION = 'CFDI', USO_CFDI = 'CP01' WHERE DOCTO_CC_ID = ?";
+                try (PreparedStatement ps = conexion.prepareStatement(sqlUpdateDoctos)) {
+                    ps.setInt(1, idAutoIncremental);
+                    ps.executeUpdate();
+                }
+            } else {
+                String sqlUpdateDoctos = "UPDATE DOCTOS_CC SET APLICADO = 'S' WHERE DOCTO_CC_ID = ?";
+                try (PreparedStatement ps = conexion.prepareStatement(sqlUpdateDoctos)) {
+                    ps.setInt(1, idAutoIncremental);
+                    ps.executeUpdate();
+                }
+            }
+
+            logger.info("Update table [DOCTOS_CC]");
+            return responseRequest.response(ResponseRequest.DataStatus.OK, abonoMaestroEntity, "Cobro por depositar grabado correctamente");
+
+        } catch (SQLException exception) {
+            logger.error("{} EXCEPCION SQL: {}", errorMessage, exception.getMessage(), exception);
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, errorMessage + ": " + exception.getMessage(), exception.getMessage());
+        } catch (Exception exception) {
+            logger.error("{} EXCEPCION GENERAL: {}", errorMessage, exception.getMessage(), exception);
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, abonoMaestroEntity, exception.getMessage());
+        }
+    }
+    
+    private java.sql.Date convertTimestampToDate(Timestamp ts) {  
+        try {
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM/dd/yyyy");
+            java.util.Date date = new Date(ts.getTime());
+            date = simpleDateFormat.parse(simpleDateFormat.format(date));
+            java.sql.Date sqlDate = new java.sql.Date(date.getTime());
+            Resources.logger.info("FECHA:" + ts + "   "  +sqlDate);
+            return sqlDate;                       
+        } catch (ParseException ex) {
+            java.util.logging.Logger.getLogger(Controlador.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+    
+    private String cargoRequiereComplementoPagos(Connection conexion, int cargoId) throws SQLException {
+        String requiereComplemento = "N";
+        String sql = "SELECT REQUIERE_COMPLEMENTO FROM CARGO_REQUIERE_COMPL_PAGOS(?, ?)";
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql)) {
+            ps.setInt(1, cargoId);
+            ps.setString(2, "S");
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    requiereComplemento = rs.getString("REQUIERE_COMPLEMENTO");
+                }
+            }
+        } catch (SQLException exception) {
+            Resources.logger.error("Error al verificar complemento de pagos para cargoId: {} - {}", cargoId, exception.getMessage());
+            throw exception; // Re-lanza la excepción para que el llamador gestione el rollback si es necesario
+        }
+
+        return requiereComplemento;
+    }
+    
+    public void actualizarSerieFolioCXC(Connection conexion, SerieFolioCXC serieFolioCXC) throws SQLException {
+        if (serieFolioCXC == null) {
+            logger.warn("Se intentó actualizar la serie/folio CXC pero el objeto serieFolioCXC es nulo.");
+            return;
+        }
+
+        String sql = "UPDATE SERIES_FOLIOS_CXC SET FOLIO = ?, SERIE = ? WHERE COBRADOR_ID = ?";
+
+        try (PreparedStatement preparedStatement = conexion.prepareStatement(sql)) {
+            preparedStatement.setInt(1, serieFolioCXC.getFolio());
+            preparedStatement.setString(2, serieFolioCXC.getSerie());
+            preparedStatement.setInt(3, serieFolioCXC.getCobradorId());
+
+            int filasAfectadas = preparedStatement.executeUpdate();
+
+            if (filasAfectadas > 0) {
+                logger.info("Serie y Folio CXC actualizados correctamente. CobradorID: {}, Serie: {}, Folio: {}", 
+                        serieFolioCXC.getCobradorId(), serieFolioCXC.getSerie(), serieFolioCXC.getFolio());
+            } else {
+                logger.warn("No se encontró ningún registro en SERIES_FOLIOS_CXC para el CobradorID: {}", 
+                        serieFolioCXC.getCobradorId());
+            }
+        } catch (SQLException exception) {
+            logger.error("Error al actualizar SERIES_FOLIOS_CXC para CobradorID: {} - {}", 
+                    serieFolioCXC.getCobradorId(), exception.getMessage(), exception);
+            throw exception;
+        }
+    }
+       
+    public String cobrosMicrosip(int cobradorId) throws SQLException {
+        // La conexión se abre aquí y se cerrará automáticamente al finalizar el try
+        try (Connection connection = FirebirdConnector.getConnection()) {
+
+            boolean estaOperandoAppChoferes = estaOperandoAppChoferes(connection);
+            String sqlQuery;
+
+            if (estaOperandoAppChoferes) {
+                sqlQuery = 
+                    "SELECT " +
+                    "DCC.DOCTO_CC_ID, DCC.FECHA, DCC.HORA, C.NOMBRE, FCD.FORMA_COBRO_ID, " +
+                    "COALESCE(( " +
+                    "   SELECT SUM(I2.IMPORTE) FROM IMPORTES_DOCTOS_CC I2 " +
+                    "   WHERE I2.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                    "), 0) AS ABONO_TOTAL " +
+                    "FROM DOCTOS_CC DCC " +
+                    "LEFT JOIN CLIENTES C ON C.CLIENTE_ID = DCC.CLIENTE_ID " +
+                    "LEFT JOIN FORMAS_COBRO_DOCTOS FCD ON FCD.DOCTO_ID = DCC.DOCTO_CC_ID " +
+                    "WHERE DCC.FOLIO STARTING WITH 'Z' AND DCC.ESTATUS = 'P' AND DCC.COBRADOR_ID = ? " +
+                        
+                    "AND NOT EXISTS (" +
+                    "   SELECT 1 " +
+                    "   FROM IMPORTES_DOCTOS_CC IDC " +
+                    "   JOIN DOCTOS_CC DCCC ON DCCC.DOCTO_CC_ID = IDC.DOCTO_CC_ACR_ID " +
+                    "   JOIN AH_PEDIDOS_ENRUTADOS PE ON PE.FOLIO_FACTURA = DCCC.FOLIO " +
+                    "   WHERE IDC.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                    "   AND PE.ESTATUS <> 'CERRADO' " +
+                    ") " +
+                    "AND NOT EXISTS ( " +
+                    "   SELECT 1 " +
+                    "   FROM DEPOSITOS_CC_DET DCCD " +
+                    "   WHERE DCCD.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                    ") " +
+                    "ORDER BY DCC.DOCTO_CC_ID";
+            } else {
+                sqlQuery = 
+                    "SELECT DCC.DOCTO_CC_ID, DCC.FECHA, DCC.HORA, C.NOMBRE, FCD.FORMA_COBRO_ID, SUM(IDCC.IMPORTE) AS ABONO_TOTAL " +
+                    "FROM DOCTOS_CC DCC " +
+                    "LEFT JOIN FORMAS_COBRO_DOCTOS FCD ON FCD.DOCTO_ID = DCC.DOCTO_CC_ID " +
+                    "LEFT JOIN IMPORTES_DOCTOS_CC IDCC ON IDCC.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                    "LEFT JOIN DEPOSITOS_CC_DET DCCD ON DCCD.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                    "LEFT JOIN CLIENTES C ON C.CLIENTE_ID = DCC.CLIENTE_ID " +
+                    "WHERE SUBSTRING(DCC.FOLIO FROM 1 FOR 1) = 'Z' " +
+                    "AND DCCD.DEPOSITO_CC_ID IS NULL " +
+                    "AND DCC.ESTATUS = 'P' " +
+                    "AND DCC.COBRADOR_ID = ? " +
+                    "GROUP BY 1, 2, 3, 4, 5 " +
+                    "ORDER BY 1";
+            }
+            
+            String queryOriginal = "SELECT DCC.DOCTO_CC_ID, DCC.FECHA, DCC.HORA, C.NOMBRE, FCD.FORMA_COBRO_ID, SUM(IDCC.IMPORTE) AS ABONO_TOTAL " +
+                "FROM DOCTOS_CC DCC " +
+                "LEFT JOIN FORMAS_COBRO_DOCTOS FCD ON FCD.DOCTO_ID = DCC.DOCTO_CC_ID " +
+                "LEFT JOIN IMPORTES_DOCTOS_CC IDCC ON IDCC.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                "LEFT JOIN DEPOSITOS_CC_DET DCCD on DCCD.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                "LEFT JOIN CLIENTES C ON C.CLIENTE_ID = DCC.CLIENTE_ID " +
+                "WHERE SUBSTRING(DCC.FOLIO FROM 1 FOR 1) = 'Z' " +
+                "AND DCCD.DEPOSITO_CC_ID IS NULL " +
+                "AND DCC.ESTATUS = 'P' " +
+                "AND DCC.COBRADOR_ID = ? " +
+                "GROUP BY 1,2,3,4,5 " +
+                "ORDER BY 1";
+
+            List<CobroMicrosip> listaCobroMicrosip = new ArrayList<>();
+
+            // Se ejecuta la consulta correcta usando sqlQuery
+            try (PreparedStatement preparedStatement = connection.prepareStatement(queryOriginal)) {
+                preparedStatement.setInt(1, cobradorId);
+
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        CobroMicrosip cobroMicrosip = new CobroMicrosip();
+                        cobroMicrosip.setDoctoCCId(resultSet.getInt("DOCTO_CC_ID"));
+
+                        java.sql.Date fecha = resultSet.getDate("FECHA");
+                        cobroMicrosip.setFechaAbono(fecha != null ? fecha.toString() : "");
+
+                        java.sql.Time hora = resultSet.getTime("HORA");
+                        cobroMicrosip.setHoraAbono(hora != null ? hora.toString() : "");
+
+                        cobroMicrosip.setNombreCliente(resultSet.getString("NOMBRE"));
+                        cobroMicrosip.setFormaCobroCCId(resultSet.getInt("FORMA_COBRO_ID"));
+                        cobroMicrosip.setAbonoTotal(resultSet.getDouble("ABONO_TOTAL"));
+
+                        listaCobroMicrosip.add(cobroMicrosip);
+                    }
+                }
+            }
+
+            String jsonResult = new Gson().toJson(listaCobroMicrosip);
+            logger.info("Cobros Microsip obtenida correctamente para CobradorID {}: {}", cobradorId, jsonResult);
+            return jsonResult;
+
+        } catch (SQLException e) {
+            logger.error("Error SQL en cobrosMicrosip para CobradorID {}: {}", cobradorId, e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error general en cobrosMicrosip para CobradorID {}: {}", cobradorId, e.getMessage(), e);
+            return null;
+        }
+    }    
+
+    private boolean estaOperandoAppChoferes(Connection conexion) throws SQLException {
+        String sql = "SELECT FIRST 1 1 FROM AH_PEDIDOS_ENRUTADOS";
+
+        try (PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            return rs.next();
+        } catch (SQLException e) {
+            Resources.logger.error("Error al consultar la operación de App Choferes: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 }

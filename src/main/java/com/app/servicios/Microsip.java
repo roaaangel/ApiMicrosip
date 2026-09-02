@@ -624,4 +624,22 @@ public class Microsip {
         }
         return null;
     }
+    
+    @POST  
+    @Path("/createCobrosXDepositarIndividual")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response createCobrosXDepositarIndividual(String jsonString) throws SQLException {
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.createCobrosXDepositarIndividual(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
 }
