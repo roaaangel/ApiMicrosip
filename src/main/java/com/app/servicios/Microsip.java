@@ -106,10 +106,10 @@ public class Microsip {
                 
                 return Response.ok(new Gson().toJson(sortedMap)).build();
             } catch (InterruptedException ex) {
-                Logger.getLogger(MicrosipOld.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
                 System.out.println("Exception Error" + ex.getMessage());
             } catch (ExecutionException ex) {
-                Logger.getLogger(MicrosipOld.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
                 System.out.println("Exception Error" + ex.getMessage());
             }
 
