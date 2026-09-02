@@ -1,9 +1,6 @@
 package com.app.servicios;
 
-import com.app.dao.Controlador;
 import com.app.dao.RepositorioDAO;
-import com.app.models.PedidoGrabado;
-import com.app.models.depositos.DepositoGrabado;
 import com.app.utilerias.ResponseRequest;
 import com.google.api.core.ApiFuture;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -17,7 +14,6 @@ import com.google.firebase.cloud.FirestoreClient;
 import com.google.gson.Gson;
 import java.io.InputStream;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -633,6 +629,74 @@ public class Microsip {
 
         Gson gson = new Gson(); 
         ResponseRequest responseRequest = controlador.createCobrosXDepositarIndividual(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @GET
+    @Path("/cobrosMicrosip/{cobradorId}")
+    @Produces("application/json")
+    public Response cobrosMicrosip(@PathParam("cobradorId") int cobradorId) {
+        try {            
+            return Response.ok(controlador.cobrosMicrosip(cobradorId)).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }
+    
+        
+    @POST  
+    @Path("/createDepositosRefactor")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response createDepositosRefactor(String jsonString) throws SQLException {
+             
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.createDepositosRefactor(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @POST  
+    @Path("/createVisitasClientes")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response createVisitasClientes(String jsonString) throws SQLException {
+      
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.createVisitasClientes(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @POST  
+    @Path("/visitasEfectivasInefectivas")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response visitasEfectivasInefectivas(String jsonString) throws SQLException {
+      
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.visitasEfectivasInefectivas(jsonString);        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
             String data = gson.toJson(responseRequest.getData());
             return Response.ok(data).build();                  
