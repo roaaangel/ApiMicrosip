@@ -27,9 +27,9 @@ public abstract class ConnectionClient {
     //public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:C:/Microsip datos che/PRUEBAS_T.FDB";    
     /*public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:C:/Microsip datos_2024/PRUEBA MANUFACTURA.FDB";*/
     //public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:D:/Microsip datos chema/FERESMAR SA DE CV.FDB";
-    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "masterkey";*/
+    public static String PASSWORD = "masterkey";
     
 
    
@@ -436,7 +436,7 @@ public abstract class ConnectionClient {
     public static String PASSWORD = "R3tr4.7c";*/
     
     // GRUPO CONSTRUCTOR JADAL ⁠Ciudad: SAN FRANCISCO OCOTLAN
-    public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.68/3050:/microsip/JADAL.fdb";
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.68/3050:/microsip/JADAL.fdb";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "nueva_password";
+    public static String PASSWORD = "nueva_password";*/
 }

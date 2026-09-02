@@ -1,6 +1,7 @@
 package com.app.servicios;
 
 import com.app.dao.Controlador;
+import com.app.dao.RepositorioDAO;
 import com.app.models.PedidoGrabado;
 import com.app.models.depositos.DepositoGrabado;
 import com.app.utilerias.ResponseRequest;
@@ -32,67 +33,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.core.Response;
 
-/**
- *
- * @author burtebony
- */
 @Path("/Microsip")
 public class Microsip {
-    private Controlador controlador = new Controlador();
     
-    @GET
-    @Path("/executeScriptsRefactor")
-    @Produces("application/json")
-    public Response executeScripts() {
-        try {            
-            ClassLoader classLoader = getClass().getClassLoader();
-            System.out.println("Leer xslt: " + classLoader.toString());
-            InputStream inputStream = classLoader.getResourceAsStream("serviceAccountKey.json");
-
-            FirebaseOptions options = new FirebaseOptions.Builder()
-                    .setCredentials(GoogleCredentials.fromStream(inputStream))
-                    .setDatabaseUrl("https://ahsw-814d4.firebaseio.com")
-                    .build();
-
-            FirebaseApp firebaseApp = null;
-            List<FirebaseApp> firebaseApps = FirebaseApp.getApps();
-            if (firebaseApps != null && !firebaseApps.isEmpty()) {
-                for (FirebaseApp app : firebaseApps) {
-                    if (app.getName().equals(FirebaseApp.DEFAULT_APP_NAME)) {
-                        firebaseApp = app;
-                    }
-                }
-            } else {
-                firebaseApp = FirebaseApp.initializeApp(options);
-            }
-            Firestore db = FirestoreClient.getFirestore();
-
-            ApiFuture<QuerySnapshot> future = db.collection("scripts_sql_microsip").get();
-            List<QueryDocumentSnapshot> documents;
-            try {
-                documents = future.get().getDocuments();
-                HashMap<String, String> scripts_sql = new HashMap<String, String>();
-                for (DocumentSnapshot document : documents) {
-                    //System.out.println(document.getId() + " => " + new Gson().toJson(document));
-                    System.out.println(document.getId() + " => " + document.getData());
-                    scripts_sql.put(
-                            document.getId(),
-                            controlador.executeScript(document.getData().get("script").toString()));
-                }
-                return Response.ok(new Gson().toJson(scripts_sql)).build();
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ExecutionException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-            return Response.ok("lista").build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
+    private final RepositorioDAO controlador = new RepositorioDAO();
     
     @GET
     @Path("/agregaScripts")
@@ -162,10 +106,10 @@ public class Microsip {
                 
                 return Response.ok(new Gson().toJson(sortedMap)).build();
             } catch (InterruptedException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(MicrosipOld.class.getName()).log(Level.SEVERE, null, ex);
                 System.out.println("Exception Error" + ex.getMessage());
             } catch (ExecutionException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(MicrosipOld.class.getName()).log(Level.SEVERE, null, ex);
                 System.out.println("Exception Error" + ex.getMessage());
             }
 
@@ -178,76 +122,17 @@ public class Microsip {
     }
     
     @GET
-    @Path("/executeScriptsUpdate")
+    @Path("/datosEmpresa")
     @Produces("application/json")
-    public Response executeScriptsUpdate() {
+    public Response datosEmpresa() {
         try {            
-            ClassLoader classLoader = getClass().getClassLoader();
-            System.out.println("Leer xslt: " + classLoader.toString());
-            InputStream inputStream = classLoader.getResourceAsStream("serviceAccountKey.json");
-
-            FirebaseOptions options = new FirebaseOptions.Builder()
-                    .setCredentials(GoogleCredentials.fromStream(inputStream))
-                    .setDatabaseUrl("https://ahsw-814d4.firebaseio.com")
-                    .build();
-
-            FirebaseApp firebaseApp = null;
-            List<FirebaseApp> firebaseApps = FirebaseApp.getApps();
-            if (firebaseApps != null && !firebaseApps.isEmpty()) {
-                for (FirebaseApp app : firebaseApps) {
-                    if (app.getName().equals(FirebaseApp.DEFAULT_APP_NAME)) {
-                        firebaseApp = app;
-                    }
-                }
-            } else {
-                firebaseApp = FirebaseApp.initializeApp(options);
-            }
-            Firestore db = FirestoreClient.getFirestore();
-
-            ApiFuture<QuerySnapshot> future = db.collection("scripts_sql_update").get();
-            List<QueryDocumentSnapshot> documents;
-            try {
-                documents = future.get().getDocuments();
-                HashMap<String, String> scripts_sql = new HashMap<String, String>();
-                for (DocumentSnapshot document : documents) {
-                    //System.out.println(document.getId() + " => " + new Gson().toJson(document));
-                    System.out.println(document.getId() + " => " + document.getData());
-                    scripts_sql.put(
-                            document.getId(),
-                            controlador.executeScript(document.getData().get("script").toString()));
-                }
-                return Response.ok(new Gson().toJson(scripts_sql)).build();
-            } catch (InterruptedException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (ExecutionException ex) {
-                Logger.getLogger(Microsip.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-            return Response.ok("lista").build();
+            return Response.ok(controlador.datosEmpresa()).build();
         } catch (Exception e) {
             System.out.println("Exception Error" + e);
         }
 
         return null;
     }
-    
-    @GET  
-    @Path("/seriesFoliosVendedores")
-    @Produces("application/json")
-    public Response seriesFoliosVendedores() throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.seriesFoliosVendedores();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }     
     
     @GET
     @Path("/configuracionMobil")
@@ -272,24 +157,6 @@ public class Microsip {
             System.out.println("Exception Error" + e);
         }
 
-        return null;
-    }
-    
-    @GET  
-    @Path("/vendedoresCobranza")
-    @Produces("application/json")
-    public Response vendedoresCobranza() throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.vendedoresCobranza();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
         return null;
     }
     
@@ -346,31 +213,9 @@ public class Microsip {
     }
     
     @GET  
-    @Path("/motivosVisitas")
-    @Produces("application/json")
-    public Response motivosVisitas() throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.motivosVisitas();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }     
-    
-    /**************************************************************************/
-    
-    @GET  
     @Path("/monedas")
     @Produces("application/json")
-    public Response monedas() throws SQLException {
-        Controlador controlador = new Controlador();
-      
+    public Response monedas() throws SQLException {        
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.monedas();        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -383,7 +228,56 @@ public class Microsip {
         return null;
     }
     
-    /**************************************************************************/
+    @GET  
+    @Path("/vendedoresCobranza")
+    @Produces("application/json")
+    public Response vendedoresCobranza() throws SQLException {
+
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.vendedoresCobranza();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @GET  
+    @Path("/motivosVisitas")
+    @Produces("application/json")
+    public Response motivosVisitas() throws SQLException {
+
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.motivosVisitas();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }   
+    
+    @GET  
+    @Path("/articulosMensajes")
+    @Produces("application/json")
+    public Response articulosMensajes() {
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.articulosMensajes();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
     
     @GET
     @Path("/articulosRefactor")
@@ -395,60 +289,6 @@ public class Microsip {
             System.out.println("Exception Error" + e);
         }
 
-        return null;
-    }
-    
-    @GET
-    @Path("/configuracionPrecios")
-    @Produces("application/json")
-    public Response configuracionPrecios() {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.configuracionPrecios();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @GET
-    @Path("/articulosMultiPrecios/{precioEmpresaId}")
-    @Produces("application/json")
-    public Response articulosMultiPrecios(@PathParam("precioEmpresaId") int precioEmpresaId) {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.articulosMultiPrecios(precioEmpresaId);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @GET
-    @Path("/clientesPoliticas/{vendedorId}")
-    @Produces("application/json")
-    public Response clientesPoliticas(@PathParam("vendedorId") int vendedorId) {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.clientesPoliticas(vendedorId);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
         return null;
     }
     
@@ -465,72 +305,47 @@ public class Microsip {
         return null;
     }
     
-    /**************************************************************************/
+    @GET
+    @Path("/configuracionPrecios")
+    @Produces("application/json")
+    public Response configuracionPrecios() {
+
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.configuracionPrecios();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+     @GET
+    @Path("/articulosMultiPrecios/{precioEmpresaId}")
+    @Produces("application/json")
+    public Response articulosMultiPrecios(@PathParam("precioEmpresaId") int precioEmpresaId) {
+        
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.articulosMultiPrecios(precioEmpresaId);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
     
     @GET  
     @Path("/getArticulosPromVta45")
     @Produces("application/json")
     public Response getArticulosPromVta45() throws SQLException {
-        Controlador controlador = new Controlador();
-      
+
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.getArticulosPromVta45();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @GET
-    @Path("/depurarRutas")
-    @Produces("application/json")
-    public Response depurarRutas() throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.depurarRutas();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    
-    @GET
-    @Path("/choferes")
-    @Produces("application/json")
-    public Response choferes() {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.choferes();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    /**************************************************************************/
-    
-    @GET
-    @Path("/existenciaArticulos")
-    @Produces("application/json")
-    public Response existenciaArticulos() {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.existenciaArticulos();        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
             String data = gson.toJson(responseRequest.getData());
             return Response.ok(data).build();                  
@@ -545,8 +360,7 @@ public class Microsip {
     @Path("/existenciaArticulosRefactor")
     @Produces("application/json")
     public Response existenciaArticulosRefactor() {
-        Controlador controlador = new Controlador();
-      
+
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.existenciaArticulosRefactor();        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -558,25 +372,6 @@ public class Microsip {
         }
         return null;
     }
-    
-    @GET
-    @Path("/existenciaArticulos2024")
-    @Produces("application/json")
-    public Response existenciaArticulos2024() {
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.existenciaArticulos2024();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    /**************************************************************************/
     
     @GET
     @Path("/procesaPoliticas")
@@ -603,14 +398,11 @@ public class Microsip {
         return null;
     }
     
-    /**************************************************************************/
-    
     @GET  
     @Path("/politicasPorVolumen")
     @Produces("application/json")
     public Response politicasPorVolumen() throws SQLException {
-        Controlador controlador = new Controlador();
-      
+
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.politicasPorVolumen();        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -627,8 +419,7 @@ public class Microsip {
     @Path("/politicasPorVolumenMultiprecios/{precioEmpresaId}")
     @Produces("application/json")
     public Response politicasPorVolumenMultiprecios(@PathParam("precioEmpresaId") int precioEmpresaId) throws SQLException {
-        Controlador controlador = new Controlador();
-      
+
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.politicasPorVolumenMultiprecios(precioEmpresaId);        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -641,14 +432,11 @@ public class Microsip {
         return null;
     }
     
-    /**************************************************************************/
-    
     @GET  
     @Path("/serieFolioCXC/{cobradorId}")
     @Produces("application/json")
     public Response serieFolioCXC(@PathParam("cobradorId") int cobradorId) throws SQLException {
-        Controlador controlador = new Controlador();
-      
+
         Gson gson = new Gson();  
         ResponseRequest responseRequest = controlador.serieFolioCXC(cobradorId);        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -680,6 +468,32 @@ public class Microsip {
     public Response clientesRefactor() {
         try {            
             return Response.ok(controlador.clientesRefactor()).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }
+    
+     @GET
+    @Path("/clientesEmitenFactura/{vendedorId}")
+    @Produces("application/json")
+    public Response clientesEmitenFactura(@PathParam("vendedorId") int vendedorId) {
+        try {            
+            return Response.ok(controlador.clientesEmitenFactura(vendedorId)).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }
+    
+    @GET
+    @Path("/clientesEmitenFactura")
+    @Produces("application/json")
+    public Response clientesEmitenFactura() {
+        try {            
+            return Response.ok(controlador.clientesEmitenFactura()).build();
         } catch (Exception e) {
             System.out.println("Exception Error" + e);
         }
@@ -720,33 +534,6 @@ public class Microsip {
     }
     
     @GET
-    @Path("/clientesEmitenFactura/{vendedorId}")
-    @Produces("application/json")
-    public Response clientesEmitenFactura(@PathParam("vendedorId") int vendedorId) {
-        try {            
-            return Response.ok(controlador.clientesEmitenFactura(vendedorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/clientesEmitenFactura")
-    @Produces("application/json")
-    public Response clientesEmitenFactura() {
-        try {            
-            return Response.ok(controlador.clientesEmitenFactura()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    
-    @GET
     @Path("/clientesConsignatariosAGO2022/{vendedorId}")
     @Produces("application/json")
     public Response clientesConsignatariosAGO2022(@PathParam("vendedorId") int vendedorId) {
@@ -785,560 +572,12 @@ public class Microsip {
         return null;
     }
     
-    /**************************************************************************/
-    
-    @POST  
-    @Path("/postPedidos")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response postPedidos(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.createPedidosPOP(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/
-    
-    @POST  
-    @Path("/createCobrosXDepositarIndividual")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createCobrosXDepositarIndividual(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.createCobrosXDepositarIndividual(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @POST  
-    @Path("/createCobroXDepositarMicrosip")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createCobroXDepositarMicrosip(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.createCobroXDepositarMicrosip(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @POST  
-    @Path("/estatusRuta")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response estatusRuta(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.estatusRuta(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/
-    
-    @GET
-    @Path("/cobrosMicrosip/{cobradorId}")
-    @Produces("application/json")
-    public Response cobrosMicrosip(@PathParam("cobradorId") int cobradorId) {
-        try {            
-            return Response.ok(controlador.cobrosMicrosip(cobradorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @POST  
-    @Path("/cobrosMicrosipChoferes/{choferId}")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response cobrosMicrosipChoferes(@PathParam("choferId") Long choferId, String cobradoresJsonIds) throws SQLException {
-        Controlador controlador = new Controlador();              
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.cobrosMicrosipChoferes(choferId, cobradoresJsonIds);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/
-    
-    @POST  
-    @Path("/createDepositosRefactor")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createDepositosRefactor(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();              
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.createDepositosRefactor(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/
-    
-    @POST  
-    @Path("/createVisitasClientes")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createVisitasClientes(String jsonString) throws SQLException {
-        System.out.print(jsonString);
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.createVisitasClientes(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/
-   
-    @POST  
-    @Path("/visitasEfectivasInefectivas")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response visitasEfectivasInefectivas(String jsonString) throws SQLException {
-        System.out.print(jsonString);
-        Controlador controlador = new Controlador();
-      
-        Gson gson = new Gson();  
-        ResponseRequest responseRequest = controlador.visitasEfectivasInefectivas(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    /**************************************************************************/    
-    
-    @GET
-    @Path("/articulosAlmacenes")
-    @Produces("application/json")
-    public Response articulosAlmacenes() {
-        try {            
-            return Response.ok(controlador.articulosAlmacenes()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }       
-    
-    @GET
-    @Path("/cuentasBancarias")
-    @Produces("application/json")
-    public Response cuentasBancarias() {
-        try {            
-            return Response.ok(controlador.cuentasBancarias()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/articulos")
-    @Produces("application/json")
-    public Response articulos() {
-        try {            
-            return Response.ok(controlador.articulos()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-
-    @GET
-    @Path("/politicaDescuentoArticuloCliente")
-    @Produces("application/json")
-    public Response politicaDescuentoArticuloCliente() {
-        try {            
-            return Response.ok(controlador.politicaDescuentoArticuloCliente()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/clientes/{vendedorId}")
-    @Produces("application/json")
-    public Response clientes(@PathParam("vendedorId") int vendedorId) {
-        try {            
-            return Response.ok(controlador.clientes(vendedorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/clientes")
-    @Produces("application/json")
-    public Response clientes() {
-        try {            
-            return Response.ok(controlador.clientes()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-
-    @GET
-    @Path("/clientesConsignatarios/{vendedorId}")
-    @Produces("application/json")
-    public Response clientesConsignatarios(@PathParam("vendedorId") int vendedorId) {
-        try {            
-            return Response.ok(controlador.clientesConsignatarios(vendedorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-
-    @GET
-    @Path("/clientesConsignatarios")
-    @Produces("application/json")
-    public Response clientesConsignatarios() {
-        try {            
-            return Response.ok(controlador.clientesConsignatarios()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/cobranza/{vendedorId}")
-    @Produces("application/json")
-    public Response cobranza(@PathParam("vendedorId") int vendedorId) {
-        try {            
-            return Response.ok(controlador.cobranza(vendedorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-
-    @GET
-    @Path("/cobranzaRutas/{chofer}")
-    @Produces("application/json")
-    public Response cobranzaRutas(@PathParam("chofer") String chofer) {
-        try {            
-            return Response.ok(controlador.cobranzaRutas(chofer)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/cobranzaRutasRefactor/{choferId}")
-    @Produces("application/json")
-    public Response cobranzaRutas(@PathParam("choferId") int choferId) {
-        try {           
-            
-           
-            return Response.ok(controlador.cobranzaRutasRefactor(choferId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/cobranzaRutasXAgenteDiario/{vendedorId}")
-    @Produces("application/json")
-    public Response cobranzaRutasXAgenteDiario(@PathParam("vendedorId") int vendedorId) {
-        try {            
-            return Response.ok(controlador.cobranzaRutasXAgenteDiario(vendedorId)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }          
-    
-    @POST  
-    @Path("/postPedidosRefactor")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response postPedidosRefactor(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        ArrayList<PedidoGrabado> listaPedidosGrabados= null;
-        listaPedidosGrabados = controlador.createPedidosRefactor(jsonString);
-        if (listaPedidosGrabados.size() > 0)
-        {
-           Gson gson = new Gson();            
-           String feeds = gson.toJson(listaPedidosGrabados);
-           return Response.ok(feeds).build();            
-        }else {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();        
-        }
-    }
-    
-    @POST  
-    @Path("/in")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createCobrosXDepositar(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-              
-        /*List<CobroXDepositarGrabado> listaCobroXDepositarGrabado = null;
-        listaCobroXDepositarGrabado = controlador.createCobrosXDepositarRefactor(jsonString);
-        if (listaCobroXDepositarGrabado.size() > 0)
-        {
-           Gson gson = new Gson();            
-           String feeds = gson.toJson(listaCobroXDepositarGrabado);
-           return Response.ok(feeds).build();            
-        } else
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();        */
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.createCobrosXDepositarRefactor(jsonString);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-   
-    @POST  
-    @Path("/createDepositos")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response createDepositos(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        
-        //if (controlador.createAbonos(jsonString))        
-        List<DepositoGrabado> listaDepositoGrabado = null;
-        listaDepositoGrabado = controlador.createDepositos(jsonString);
-        if (listaDepositoGrabado.size() > 0)
-        {
-           Gson gson = new Gson();            
-           String feeds = gson.toJson(listaDepositoGrabado);
-           return Response.ok(feeds).build();            
-        } else
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();        
-    }
-   
-    @GET
-    @Path("/datosEmpresa")
-    @Produces("application/json")
-    public Response datosEmpresa() {
-        try {            
-            return Response.ok(controlador.datosEmpresa()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    
-    
-    /*DEPRECADOS*/
-    @GET
-    @Path("/sucursalesEmpresa")
-    @Produces("application/json")
-    public Response sucursalesEmpresa() {
-        try {            
-            return Response.ok(controlador.catalogoSucursalesEmpresa()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/preciosEmpresa")
-    @Produces("application/json")
-    public Response preciosEmpresa() {
-        try {            
-            return Response.ok(controlador.catalogoPreciosEmpresa()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/conceptosCuentasXCobrar")
-    @Produces("application/json")
-    public Response conceptosCuentasXCobrar() {
-        try {            
-            return Response.ok(controlador.catalogoConceptosCuentasXCobrar()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/condicionesDePago")
-    @Produces("application/json")
-    public Response condicionesDePago() {
-        try {            
-            return Response.ok(controlador.catalogoCondicionesDePago()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/rolesClavesArticulos")
-    @Produces("application/json")
-    public Response rolesClavesArticulos() {
-        try {            
-            return Response.ok(controlador.catalogoRolesClavesArticulos()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-          
-    @POST  
-    @Path("/creaConfiguracionMobil")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response creaConfiguracionMobil(String jsonString) {
-        Controlador controlador = new Controlador();
-            
-        if (controlador.creaConfiguracionMobil(jsonString)) {
-            System.out.println("okokokoko");
-           return Response.ok("ok").build();            
-        } else
-           return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();                
-    }
-                   
-    @GET
-    @Path("/articulosAlmacenes/{articulo}")
-    @Produces("application/json")
-    public Response articulosAlmacenes(@PathParam("articulo") String articulo) {
-        try {            
-            return Response.ok(controlador.articulosAlmacenes(articulo)).build();            
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-    
-    @GET
-    @Path("/articulosPrecios/{articulo}")
-    @Produces("application/json")
-    public Response articulosPrecios(@PathParam("articulo") String articulo) {
-        try {            
-            return Response.ok(controlador.getArticuloPrecio(articulo)).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }        
-    
-    @GET
-    @Path("/bancos")
-    @Produces("application/json")
-    public Response bancos() {
-        try {            
-            return Response.ok(controlador.bancos()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }
-            
-    @GET
-    @Path("/almacenesConfiguracion")
-    @Produces("application/json")
-    public Response almacenesConfiguracion() {
-        try {            
-            return Response.ok(controlador.almacenesConfiguracion()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
-
-        return null;
-    }     
-    
     @POST  
     @Path("/detalleDocumentoCXC")
     @Consumes({"application/json"})
     @Produces("application/json")
     public Response detalleDocumentoCXC(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-        
+
         Gson gson = new Gson(); 
         ResponseRequest responseRequest = controlador.detalleDocumentoCXC(jsonString);        
         if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
@@ -1351,92 +590,38 @@ public class Microsip {
         return null;
     }
     
-    
-    @GET  
-    @Path("/rutaAsignadaYOrdenadaConMaps/{choferId}")
-    @Consumes({"application/json"})
-    @Produces("application/json")
-    public Response rutaAsignadaYOrdenadaConMaps(@PathParam("choferId") int choferId) {
-        Controlador controlador = new Controlador();
-        
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.rutaAsignadaYOrdenadaConMaps(choferId);        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @GET  
-    @Path("/ultimaMetadataMicrosip")
-    @Produces("application/json")
-    public Response ultimaMetadataMicrosip() {
-        Controlador controlador = new Controlador();
-        
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.ultimaMetadataMicrosip();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-    
-    @GET  
-    @Path("/articulosMensajes")
-    @Produces("application/json")
-    public Response articulosMensajes() {
-        Controlador controlador = new Controlador();
-        
-        Gson gson = new Gson(); 
-        ResponseRequest responseRequest = controlador.articulosMensajes();        
-        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
-            String data = gson.toJson(responseRequest.getData());
-            return Response.ok(data).build();                  
-        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
-            String data = responseRequest.getMensaje();
-            return Response.status(500).entity(data).build();                   
-        }
-        return null;
-    }
-            
-    /*DEPRECADO*/
     @GET
-    @Path("/viasEmbarque")
+    @Path("/clientesPoliticas/{vendedorId}")
     @Produces("application/json")
-    public Response viasEmbarque() {
-        try {            
-            return Response.ok(controlador.viasEmbarque()).build();
-        } catch (Exception e) {
-            System.out.println("Exception Error" + e);
-        }
+    public Response clientesPoliticas(@PathParam("vendedorId") int vendedorId) {
 
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.clientesPoliticas(vendedorId);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
         return null;
-    }     
+    }
     
-    /*@POST  
+    @POST  
     @Path("/postPedidos")
     @Consumes({"application/json"})
     @Produces("application/json")
     public Response postPedidos(String jsonString) throws SQLException {
-        Controlador controlador = new Controlador();
-      
-        ArrayList<PedidoGrabado> listaPedidosGrabados= null;
-        listaPedidosGrabados = controlador.createPedidos(jsonString);
-        if (listaPedidosGrabados.size() > 0)
-        {
-           Gson gson = new Gson();            
-           String feeds = gson.toJson(listaPedidosGrabados);
-           return Response.ok(feeds).build();            
-        }else {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();        
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.createPedidosPOP(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
         }
-    }*/
+        return null;
+    }
 }
