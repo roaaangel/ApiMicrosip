@@ -6,6 +6,7 @@ import com.app.models.AbonoMaestroEntity;
 import com.app.models.AgenteCobranza;
 import com.app.models.ArticuloMensaje;
 import com.app.models.ArticuloPromedioVenta45;
+import com.app.models.Chofer;
 import com.app.models.ClienteConsignatario;
 import com.app.models.ClienteDireccionPrincipal;
 import com.app.models.ClienteEmiteFactura;
@@ -32,6 +33,7 @@ import com.app.models.PoliticaCliente;
 import com.app.models.PoliticaDescuentoArticuloClienteRefactor;
 import com.app.models.PoliticaXVolumen;
 import com.app.models.ProcesaPoliticas;
+import com.app.models.RutaOrdenadaConMaps;
 import com.app.models.SerieFolioCXC;
 import com.app.models.TrimestreAnioInfo;
 import com.app.models.VisitaClienteGrabado;
@@ -57,6 +59,7 @@ import com.app.servicios.Resources;
 import com.app.utilerias.ResponseRequest;
 import com.app.utilerias.Utileria;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
@@ -65,12 +68,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -89,6 +92,15 @@ public class RepositorioDAO {
     
     private static final Logger logger = LoggerFactory.getLogger(RepositorioDAO.class);
    
+    private Gson gson;
+    
+    public RepositorioDAO() {
+        gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .setDateFormat("MM/dd/yyyy")
+            .create();
+    }
+    
     public String executeScript(String script) {
         try (Connection connection = FirebirdConnector.getConnection()) {
 
@@ -147,7 +159,7 @@ public class RepositorioDAO {
                     datosEmpresa.setRfc(rfc != null ? rfc.trim() : null);
                 }
 
-                return new Gson().toJson(datosEmpresa);
+                return gson.toJson(datosEmpresa);
             }
 
         } catch (SQLException exception) {
@@ -345,11 +357,59 @@ public class RepositorioDAO {
             dto.setListaVendedores(listaVendedores);
             dto.setListaCobradores(listaCobradores);
 
-            return new Gson().toJson(dto);
+            return gson.toJson(dto);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar vendedores y cobradores: {}", exception.getMessage(), exception);
             return "{}";
+        }
+    }
+    
+    public ResponseRequest choferes() {
+        logger.info("Iniciando consulta del catálogo de choferes");
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<Chofer> listaChoferes = new ArrayList<>();
+
+        String sql = "SELECT CHOFER_ID, CLAVE, NOMBRE FROM MG_CHOFERES ORDER BY NOMBRE";
+
+        try {
+            configuracionMicrosip();
+        } catch (Exception e) {
+            logger.error("Error al ejecutar configuracionMicrosip: " + e.getMessage(), e);
+        }
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement preparedStatement = conexion.prepareStatement(sql);
+             ResultSet resultSet = preparedStatement.executeQuery()) {
+
+            while (resultSet.next()) {
+                Chofer chofer = new Chofer();
+                chofer.setChoferId(resultSet.getInt("CHOFER_ID"));
+
+                String clave = resultSet.getString("CLAVE");
+                chofer.setClave(clave != null ? clave.trim() : "");
+
+                String nombre = resultSet.getString("NOMBRE");
+                chofer.setNombre(nombre != null ? nombre.trim() : "");
+
+                listaChoferes.add(chofer);
+            }
+
+            logger.info("Consulta exitosa de choferes. Total registrados: " + listaChoferes.size());
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.OK, 
+                    listaChoferes, 
+                    "Choferes consultados correctamente"
+            );
+
+        } catch (SQLException exception) {
+            logger.error("Excepción en choferes: " + exception.getMessage(), exception);
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.ERROR, 
+                    null, 
+                    "Error al consultar Choferes: " + exception.getMessage()
+            );
         }
     }
 
@@ -413,7 +473,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaAlmacenes);
+            return gson.toJson(listaAlmacenes);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar almacenes: {}", exception.getMessage(), exception);
@@ -444,7 +504,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaMetodoPago);
+            return gson.toJson(listaMetodoPago);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar métodos de pago: {}", exception.getMessage(), exception);
@@ -485,7 +545,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaCuentasBancarias);
+            return gson.toJson(listaCuentasBancarias);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar cuentas bancarias: {}", exception.getMessage(), exception);
@@ -540,7 +600,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaCobradorSucursal);
+            return gson.toJson(listaCobradorSucursal);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar cobradores por sucursal: {}", exception.getMessage(), exception);
@@ -803,7 +863,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaArticulos);
+            return gson.toJson(listaArticulos);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar artículos refactorizados: {}", exception.getMessage(), exception);
@@ -919,7 +979,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaPromociones);
+            return gson.toJson(listaPromociones);
 
         } catch (SQLException exception) {
             logger.error("Error al consultar promociones: {}", exception.getMessage(), exception);
@@ -1205,7 +1265,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(procesaPoliticas);
+            return gson.toJson(procesaPoliticas);
 
         } catch (SQLException exception) {
             logger.error("Error SQL en paginarPoliticaDescuentoArticuloCliente: {}", exception.getMessage(), exception);
@@ -1271,7 +1331,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaPoliticaDescuentoArticuloCliente);
+            return gson.toJson(listaPoliticaDescuentoArticuloCliente);
 
         } catch (SQLException exception) {
             logger.error("Error en politicaDescuentoArticuloClienteRefactor: {}", exception.getMessage(), exception);
@@ -1563,7 +1623,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaCliente);
+            return gson.toJson(listaCliente);
 
         } catch (SQLException exception) {
             logger.error("Error en clientesRefactor para el vendedor {}: {}", vendedorId, exception.getMessage(), exception);
@@ -1677,7 +1737,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaCliente);
+            return gson.toJson(listaCliente);
 
         } catch (SQLException exception) {
             logger.error("Error en clientesRefactor (general): {}", exception.getMessage(), exception);
@@ -1716,7 +1776,7 @@ public class RepositorioDAO {
                 }
             }
 
-            String jsonResultado = new Gson().toJson(listaClienteEmiteFactura);
+            String jsonResultado = gson.toJson(listaClienteEmiteFactura);
             System.out.println(jsonResultado);
             return jsonResultado;
 
@@ -1756,7 +1816,7 @@ public class RepositorioDAO {
                 }
             }
 
-            String jsonResultado = new Gson().toJson(listaClienteEmiteFactura);
+            String jsonResultado = gson.toJson(listaClienteEmiteFactura);
             return jsonResultado;
 
         } catch (SQLException e) {
@@ -1904,7 +1964,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaClientesConsignatarios);
+            return gson.toJson(listaClientesConsignatarios);
 
         } catch (SQLException exception) {
             logger.error("Error SQL al consultar consignatarios por vendedorId ({}): {}", vendedorId, exception.getMessage(), exception);
@@ -1947,7 +2007,7 @@ public class RepositorioDAO {
                 }
             }
 
-            return new Gson().toJson(listaClientesConsignatarios);
+            return gson.toJson(listaClientesConsignatarios);
 
         } catch (SQLException exception) {
             logger.error("Error SQL al consultar consignatarios general: {}", exception.getMessage(), exception);
@@ -2007,8 +2067,8 @@ public class RepositorioDAO {
                     }
                 }
             }
-
-            return new Gson().toJson(listaCobranza);
+                  
+            return gson.toJson(listaCobranza);
 
         } catch (SQLException exception) {
             logger.error("Error SQL al consultar cobranzaRefactor para vendedorId ({}): {}", vendedorId, exception.getMessage(), exception);
@@ -2019,12 +2079,79 @@ public class RepositorioDAO {
         }
     }
     
+    public String cobranzaRutasRefactor(int choferId) throws SQLException {
+        logger.info("Recuperando cobranza por rutas para ChoferID: " + choferId);
+        List<CobranzaRefactor> listaCobranza = new ArrayList<>();
+
+        String sqlQuery = "SELECT " +
+                "    C.CLIENTE_ID, " +
+                "    C.NOMBRE, " +
+                "    B.DOCTO_CC_ID, " +
+                "    B.FOLIO, " +
+                "    B.FECHA_ELABORACION, " +
+                "    B.FECHA_VENCIMIENTO, " +
+                "    B.IMPORTE_CARGO, " +
+                "    B.SALDO_CARGO, " +
+                "    B.ATRASO, " +
+                "    B.CONCEPTO_CC_ID, " +
+                "    COALESCE(DC.NOMBRE_CONSIG, 'Dirección principal') AS NOMBRE_CONSIG " +
+                "FROM AH_PEDIDOS_ENRUTADOS P " +
+                "INNER JOIN CLIENTES C " +
+                "    ON C.CLIENTE_ID = P.CLIENTE_ID " +
+                "    AND P.ESTATUS <> 'CERRADO' " +
+                "    AND P.CHOFER_ID = ? " +
+                "LEFT JOIN CARGOS_CLIENTE_AH(C.CLIENTE_ID, CURRENT_DATE, CURRENT_DATE, 'N', 'S') B ON 1=1 " +
+                "LEFT JOIN DOCTOS_ENTRE_SIS DS ON (DS.DOCTO_DEST_ID = B.DOCTO_CC_ID AND DS.CLAVE_SIS_DEST = 'CC' AND DS.CLAVE_SIS_FTE = 'VE' AND DS.TIPO_DOCTO = 'C') " +
+                "LEFT JOIN DOCTOS_VE DVE ON DVE.DOCTO_VE_ID = DS.DOCTO_FTE_ID " +
+                "LEFT JOIN DIRS_CLIENTES DC ON DC.DIR_CLI_ID = DVE.DIR_CLI_ID " +
+                "INNER JOIN AH_PEDIDOS_ENRUTADOS PE ON PE.FOLIO_FACTURA = B.FOLIO AND PE.ESTATUS <> 'CERRADO' AND PE.CHOFER_ID = ? " +
+                "WHERE B.DOCTO_CC_ID IS NOT NULL " +
+                "ORDER BY B.ATRASO";
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement preparedStatement = conexion.prepareStatement(sqlQuery)) {
+
+            // Asignación de parámetros seguros para evitar SQL Injection
+            preparedStatement.setInt(1, choferId);
+            preparedStatement.setInt(2, choferId);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    CobranzaRefactor cobranza = new CobranzaRefactor();
+                    cobranza.setClienteId(resultSet.getInt("CLIENTE_ID"));
+                    cobranza.setNombreCliente(resultSet.getString("NOMBRE"));
+                    cobranza.setDoctoCCId(resultSet.getInt("DOCTO_CC_ID"));
+                    cobranza.setFolio(resultSet.getString("FOLIO"));
+                    cobranza.setFechaElaboracion(resultSet.getDate("FECHA_ELABORACION"));
+                    cobranza.setFechaVencimiento(resultSet.getDate("FECHA_VENCIMIENTO"));
+                    cobranza.setImporteCargo(resultSet.getDouble("IMPORTE_CARGO"));
+                    cobranza.setSaldoCargo(resultSet.getDouble("SALDO_CARGO"));
+                    cobranza.setAtraso(resultSet.getInt("ATRASO"));
+                    cobranza.setConceptoCCId(resultSet.getInt("CONCEPTO_CC_ID"));
+
+                    String nombreConsig = resultSet.getString("NOMBRE_CONSIG");
+                    cobranza.setNombreConsignatario(nombreConsig != null ? nombreConsig : "");
+
+                    listaCobranza.add(cobranza);
+                }
+            }       
+            
+            String jsonResponse = gson.toJson(listaCobranza);
+            logger.info("Cobranza obtenida exitosamente para ChoferID " + choferId + ": " + jsonResponse);
+            return jsonResponse;
+
+        } catch (SQLException exception) {
+            logger.error("SUCEDIO UNA EXCEPCION al recuperar cobranza por chofer: " + exception.getMessage(), exception);
+            return null;
+        }
+    }
+    
     public ResponseRequest detalleDocumentoCXC(String jsonString) throws SQLException {
         logger.info("Consultando detalleDocumentoCXC: " + jsonString);
         ResponseRequest responseRequest = new ResponseRequest();
 
         Type type = new TypeToken<ArrayList<Long>>(){}.getType();
-        List<Long> listaIds = new Gson().fromJson(jsonString, type);
+        List<Long> listaIds = gson.fromJson(jsonString, type);
 
         if (listaIds == null || listaIds.isEmpty()) {
             return responseRequest.response(ResponseRequest.DataStatus.OK, new ArrayList<>(), "Lista de IDs vacía.");
@@ -2185,8 +2312,10 @@ public class RepositorioDAO {
     }
     
     private List<MaestroPedido> parsearPedidosJson(String jsonPedidos) {
+        Gson gson = new Gson();
+        
         Type listType = new TypeToken<List<MaestroPedido>>() {}.getType();
-        return new Gson().fromJson(jsonPedidos, listType);
+        return gson.fromJson(jsonPedidos, listType);
     }
 
     /**
@@ -2202,7 +2331,11 @@ public class RepositorioDAO {
             
             FolioInfo folioInfo = obtenerFolioSiguiente(conexion, pedido.getVendedorId());
 
-            //serieFolio = construirSerieFolio(folioInfo.getSerie(), folioInfo.getConsecutivo());
+            logger.info("consecutivoFolio: " + folioInfo.getConsecutivo()+ " serie: " + folioInfo.getSerie());
+            
+            int posiciones =  9 - folioInfo.getSerie().length();//Son 9 la longitud del campo FOLIO
+            serieFolio = folioInfo.getSerie() + StringUtils.leftPad(String.valueOf(folioInfo.getConsecutivo()), posiciones, "0");
+            
             int condicionPagoId = obtenerCondicionPago(conexion, pedido.getClienteId());
             int direccionCliente = resolverDireccionCliente(pedido);
             int viaEmbarqueId = obtenerViaEmbarque(conexion, direccionCliente);
@@ -2243,7 +2376,7 @@ public class RepositorioDAO {
             }
         }
 
-        logger.debug("Resultado existePedidoGuardado: " + new Gson().toJson(pedidoExistente));
+        logger.debug("Resultado existePedidoGuardado: " + gson.toJson(pedidoExistente));
         return pedidoExistente;
     }
    /**
@@ -2351,43 +2484,80 @@ public class RepositorioDAO {
 
        String tipoDocto = Constants.COTIZACION.equals(configuracionMobil.getComportamientoCaptura()) ? Constants.COTIZACION : Constants.PEDIDO;
 
-       StringBuilder sql = new StringBuilder();
-       sql.append("INSERT INTO DOCTOS_VE (DOCTO_VE_ID, TIPO_DOCTO, SUBTIPO_DOCTO, FOLIO, FECHA, HORA, CLAVE_CLIENTE, CLIENTE_ID, ")
-          .append("DIR_CLI_ID, DIR_CONSIG_ID, ALMACEN_ID, MONEDA_ID, TIPO_CAMBIO, TIPO_DSCTO, DSCTO_PCTJE, DSCTO_IMPORTE, ")
-          .append("ESTATUS, APLICADO, FECHA_VIGENCIA_ENTREGA, DESCRIPCION, IMPORTE_NETO, FLETES, OTROS_CARGOS, TOTAL_IMPUESTOS, ")
-          .append("TOTAL_RETENCIONES, TOTAL_ANTICIPOS, PESO_EMBARQUE, FORMA_EMITIDA, CONTABILIZADO, ACREDITAR_CXC, SISTEMA_ORIGEN, ")
-          .append("COND_PAGO_ID, PCTJE_DSCTO_PPAG, VENDEDOR_ID, PCTJE_COMIS, VIA_EMBARQUE_ID, IMPORTE_COBRO, USUARIO_CREADOR, ")
-          .append("ES_CFD, ENVIADO, CFD_ENVIO_ESPECIAL, CFDI_CERTIFICADO, FECHA_HORA_CREACION, CARGAR_SUN, SUCURSAL_ID");
+       String querySegunVersion = 
+       "INSERT INTO DOCTOS_VE (DOCTO_VE_ID, TIPO_DOCTO, SUBTIPO_DOCTO, FOLIO, FECHA, HORA, CLAVE_CLIENTE, CLIENTE_ID, " +
+       "DIR_CLI_ID, DIR_CONSIG_ID, ALMACEN_ID, MONEDA_ID, TIPO_CAMBIO, TIPO_DSCTO, DSCTO_PCTJE, DSCTO_IMPORTE, " +
+       "ESTATUS, APLICADO, FECHA_VIGENCIA_ENTREGA, DESCRIPCION, IMPORTE_NETO, FLETES, OTROS_CARGOS, TOTAL_IMPUESTOS, "  +
+       "TOTAL_RETENCIONES, TOTAL_ANTICIPOS, PESO_EMBARQUE, FORMA_EMITIDA, CONTABILIZADO, ACREDITAR_CXC, SISTEMA_ORIGEN, " +
+       "COND_PAGO_ID, PCTJE_DSCTO_PPAG, VENDEDOR_ID, PCTJE_COMIS, VIA_EMBARQUE_ID, IMPORTE_COBRO, USUARIO_CREADOR, " +
+       "ES_CFD, ENVIADO, CFD_ENVIO_ESPECIAL, CFDI_CERTIFICADO, FECHA_HORA_CREACION, CARGAR_SUN, SUCURSAL_ID)" +
+       "VALUES (";
 
-       sql.append(") VALUES (?, ?, 'N', ?, ?, ?, ?, ?, ?, ?, ?, 1, 1.00, 'P', 0.00, 0.00, 'P', 'S', ?, ?, ?, 0.00, 0.00, ?, 0.00, 0.00, 0.00, 'N', 'N', 'N', 'VE', ?, 0.00, ?, 0.00, ?, 0.00, ?, 'N', 'N', 'N', 'N', CURRENT_TIMESTAMP, 'S', ?)");
+       querySegunVersion = querySegunVersion + doctoVeId + ", ";
+       querySegunVersion = querySegunVersion + "'" + tipoDocto + "', ";      
+       querySegunVersion = querySegunVersion + "'N', ";       
+       querySegunVersion = querySegunVersion + "'" + serieFolio + "', ";
+       querySegunVersion = querySegunVersion + "'" + pedido.getFechaPedido() + "', ";
+       querySegunVersion = querySegunVersion + "'" + pedido.getHoraPedido() + "', ";
+       querySegunVersion = querySegunVersion + "'" + pedido.getClaveCliente() + "', ";
+       querySegunVersion = querySegunVersion + pedido.getClienteId() + ", ";
 
-       try (PreparedStatement ps = conexion.prepareStatement(sql.toString())) {
-           int idx = 1;
-           ps.setInt(idx++, doctoVeId);
-           ps.setString(idx++, tipoDocto);
-           ps.setString(idx++, serieFolio);
-           ps.setString(idx++, pedido.getFechaPedido());
-           ps.setString(idx++, pedido.getHoraPedido());
-           ps.setString(idx++, pedido.getClaveCliente());
-           ps.setInt(idx++, pedido.getClienteId());
-           ps.setInt(idx++, (pedido.getDireccionConsignatarioId() != 0) ? pedido.getDireccionConsignatarioId() : pedido.getDireccionClienteId());
-           ps.setInt(idx++, (pedido.getDireccionConsignatarioEnvioId() != 0) ? pedido.getDireccionConsignatarioEnvioId() : pedido.getDireccionClienteId());
-           ps.setInt(idx++, pedido.getAlmacenId());
-           ps.setString(idx++, pedido.getFechaPedido());
-           ps.setString(idx++, pedido.getObservaciones());
-           ps.setDouble(idx++, pedido.getImporteNeto());
-           ps.setDouble(idx++, pedido.getTotalImpuestos());
-           ps.setInt(idx++, condPagoId);
-           ps.setInt(idx++, pedido.getVendedorId());
-           ps.setInt(idx++, viaEmbarqueId);
-           ps.setString(idx++, Constants.SYSDBA);
+       if (pedido.getDireccionConsignatarioId() != 0) {
+           querySegunVersion = querySegunVersion + pedido.getDireccionConsignatarioId() + ", ";
+       } else {
+           querySegunVersion = querySegunVersion + pedido.getDireccionClienteId() + ", ";
+       }
 
-           int sucursalId = configuracionMobil.getSucursalId();
-           if (configuracionMobil.getOperaSucursalAlmacen() == 1) {
-               sucursalId = resolverSucursalId(conexion, pedido.getAlmacenId());
-               ps.setInt(idx++, sucursalId);
-           }
+       //REFACTOR CONSIGNATARIOS ENVIO
+       if (pedido.getDireccionConsignatarioEnvioId() != 0) {
+           querySegunVersion = querySegunVersion + pedido.getDireccionConsignatarioEnvioId() + ", ";
+       } else {
+           querySegunVersion = querySegunVersion + pedido.getDireccionClienteId() + ", ";
+       }
 
+       querySegunVersion = querySegunVersion + pedido.getAlmacenId() + ", ";
+       querySegunVersion = querySegunVersion + "1, ";
+       querySegunVersion = querySegunVersion + "1.00, ";
+       querySegunVersion = querySegunVersion + "'P', ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "'P', ";
+       querySegunVersion = querySegunVersion + "'S', ";
+       querySegunVersion = querySegunVersion + "'" + pedido.getFechaPedido() + "', ";
+       querySegunVersion = querySegunVersion + "'" + pedido.getObservaciones() + "', ";
+       querySegunVersion = querySegunVersion + pedido.getImporteNeto() + ", ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + pedido.getTotalImpuestos() + ", ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'VE', ";
+       querySegunVersion = querySegunVersion + condPagoId + ", ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + pedido.getVendedorId() + ", ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + viaEmbarqueId + ", ";
+       querySegunVersion = querySegunVersion + "0.00, ";
+       querySegunVersion = querySegunVersion + "'" + Constants.SYSDBA + "', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "'N', ";
+       querySegunVersion = querySegunVersion + "CURRENT_TIMESTAMP, ";
+       querySegunVersion = querySegunVersion + "'S', ";
+       
+       int sucursalId = configuracionMobil.getSucursalId();
+       if (configuracionMobil.getOperaSucursalAlmacen() == 1) {
+            sucursalId = resolverSucursalId(conexion, pedido.getAlmacenId());            
+       }
+       querySegunVersion = querySegunVersion + sucursalId + ") ";
+        
+       try (PreparedStatement ps = conexion.prepareStatement(querySegunVersion)) {
+          
            ps.executeUpdate();
        }
    }  
@@ -2655,7 +2825,7 @@ public class RepositorioDAO {
             ConfiguracionMobil configuracionMobil = configuracionMicrosip();
 
             Type type = new TypeToken<CobroXDepositar>(){}.getType();
-            CobroXDepositar cobroXDepositar = new Gson().fromJson(jsonString, type);
+            CobroXDepositar cobroXDepositar = gson.fromJson(jsonString, type);
 
             // Procesamiento individual por cada abono
             for (AbonoMaestroEntity abonoMaestroEntity : cobroXDepositar.getListaAbonosParaMicrosip()) {
@@ -3050,8 +3220,8 @@ public class RepositorioDAO {
                     }
                 }
             }
-
-            String jsonResult = new Gson().toJson(listaCobroMicrosip);
+                                    
+            String jsonResult = gson.toJson(listaCobroMicrosip);
             logger.info("Cobros Microsip obtenida correctamente para CobradorID {}: {}", cobradorId, jsonResult);
             return jsonResult;
 
@@ -3082,8 +3252,9 @@ public class RepositorioDAO {
 
         ResponseRequest responseRequest = new ResponseRequest();
         List<DepositoGrabado> listaDepositoGrabado = new ArrayList<>();
-        Gson gson = new Gson();
 
+        Gson gson = new Gson();
+        
         ConfiguracionMobil configuracionMobil = configuracionMicrosip();
         Utilerias utilerias = new Utilerias();
 
@@ -3178,7 +3349,7 @@ public class RepositorioDAO {
         try (Connection conexion = FirebirdConnector.getConnection()) {
             try {
                 Type type = new TypeToken<List<Localizacion>>(){}.getType();
-                List<Localizacion> listaLocalizacion = new Gson().fromJson(jsonVisitasClientes, type);
+                List<Localizacion> listaLocalizacion = gson.fromJson(jsonVisitasClientes, type);
 
                 if (listaLocalizacion == null || listaLocalizacion.isEmpty()) {
                     return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Sin registros para procesar");
@@ -3235,7 +3406,7 @@ public class RepositorioDAO {
         try (Connection conexion = FirebirdConnector.getConnection()) {
             try {
                 Type type = new TypeToken<List<VisitaEfectivaInefectiva>>(){}.getType();
-                List<VisitaEfectivaInefectiva> listaVisitasEfectivasInefectivas = new Gson().fromJson(jsonVisitasClientes, type);
+                List<VisitaEfectivaInefectiva> listaVisitasEfectivasInefectivas = gson.fromJson(jsonVisitasClientes, type);
 
                 if (listaVisitasEfectivasInefectivas == null || listaVisitasEfectivasInefectivas.isEmpty()) {
                     return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Sin registros de visitas para procesar");
@@ -3274,6 +3445,158 @@ public class RepositorioDAO {
                 exception.printStackTrace();
                 return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al crear visitas - clientes: " + exception.getMessage());
             }
+        }
+    }
+    
+    public ResponseRequest rutaAsignadaYOrdenadaConMaps(int choferId) {
+        logger.info("Consultando ruta asignada y ordenada con Maps para ChoferID: " + choferId);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<RutaOrdenadaConMaps> listaRutaOrdenadaConMaps = new ArrayList<>();
+
+        String sql =
+                "SELECT RMO.ID, RMO.ORDEN, " +
+                "       RMO.ID_ORIGEN, RMO.NOMBRE_CLIENTE_ORIGEN, RMO.LATITUD_ORIGEN, RMO.LONGITUD_ORIGEN, " +
+                "       RMO.ID_DESTINO, RMO.NOMBRE_CLIENTE_DESTINO, RMO.LATITUD_DESTINO, RMO.LONGITUD_DESTINO, " +
+                "       RMO.DISTANCIA, RMO.DURACION, RMO.ESTATUS_CLIENTE, RMO.NUMERO_DOCUMENTOS " +
+                "FROM RUTAS_MAPS_ORDEN RMO " +
+                "INNER JOIN RUTAS_MAPS RM ON RM.ID = RMO.RUTA_MAPS_ID " +
+                "WHERE RM.ESTATUS <> 'CERRADO' AND RM.CHOFER_ID = ? " +
+                "ORDER BY RMO.ORDEN";
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement ps = conexion.prepareStatement(sql)) {
+
+            ps.setInt(1, choferId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    RutaOrdenadaConMaps ruta = new RutaOrdenadaConMaps();
+                    ruta.setRutaMapsOrdenId(rs.getInt("ID"));
+                    ruta.setOrden(rs.getInt("ORDEN"));
+                    ruta.setIdOrigen(rs.getInt("ID_ORIGEN"));
+                    ruta.setNombreClienteOrigen(rs.getString("NOMBRE_CLIENTE_ORIGEN"));
+                    ruta.setLatitudOrigen(rs.getDouble("LATITUD_ORIGEN"));
+                    ruta.setLongitudOrigen(rs.getDouble("LONGITUD_ORIGEN"));
+                    ruta.setIdDestino(rs.getInt("ID_DESTINO"));
+                    ruta.setNombreClienteDestino(rs.getString("NOMBRE_CLIENTE_DESTINO"));
+                    ruta.setLatitudDestino(rs.getDouble("LATITUD_DESTINO"));
+                    ruta.setLongitudDestino(rs.getDouble("LONGITUD_DESTINO"));
+                    ruta.setDistancia(rs.getString("DISTANCIA"));
+                    ruta.setDuracion(rs.getString("DURACION"));
+                    ruta.setEstatusCliente(rs.getString("ESTATUS_CLIENTE"));
+                    ruta.setNumeroDocumentos(rs.getInt("NUMERO_DOCUMENTOS"));
+
+                    listaRutaOrdenadaConMaps.add(ruta);
+                }
+            }
+
+            logger.info("Consulta exitosa de rutas ordenadas para ChoferID " + choferId + ". Total registros: " + listaRutaOrdenadaConMaps.size());
+
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.OK, 
+                    listaRutaOrdenadaConMaps, 
+                    "Detalle de rutas consultado correctamente."
+            );
+
+        } catch (SQLException exception) {
+            logger.error("Excepción en rutaAsignadaYOrdenadaConMaps para ChoferID " + choferId + ": " + exception.getMessage(), exception);
+
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.ERROR, 
+                    null, 
+                    "Error al consultar rutas: " + exception.getMessage()
+            );
+        }
+    }
+    
+    public ResponseRequest cobrosMicrosipChoferes(Long choferId, String cobradoresJsonIds) throws SQLException {
+        logger.info("Iniciando cobrosMicrosipChoferes. ChoferID: " + choferId + ", Cobradores JSON: " + cobradoresJsonIds);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        Type type = new TypeToken<List<Long>>(){}.getType();
+        List<Long> cobradoresIds = gson.fromJson(cobradoresJsonIds, type);
+
+        if (cobradoresIds == null || cobradoresIds.isEmpty()) {
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "No se encontraron resultados para procesar");
+        }
+
+        List<CobroMicrosip> listaCobroMicrosip = new ArrayList<>();
+
+        // Generar la cláusula IN con placeholders '?' dinámicos según el tamaño de la lista
+        // Construir los ? dinámicamente
+        String inClause = cobradoresIds.stream()
+        .map(String::valueOf)
+        .collect(Collectors.joining(","));
+
+        String sql =
+                "SELECT " +
+                "    DCC.DOCTO_CC_ID, DCC.FECHA, DCC.HORA, C.NOMBRE, FCD.FORMA_COBRO_ID, PCP.DIAS_PLAZO, " +
+                "    COALESCE(( " +
+                "        SELECT SUM(I2.IMPORTE) FROM IMPORTES_DOCTOS_CC I2 " +
+                "        WHERE I2.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                "    ), 0) AS ABONO_TOTAL " +
+                "FROM DOCTOS_CC DCC " +
+                "LEFT JOIN CLIENTES C ON C.CLIENTE_ID = DCC.CLIENTE_ID " +
+                "LEFT JOIN FORMAS_COBRO_DOCTOS FCD ON FCD.DOCTO_ID = DCC.DOCTO_CC_ID " +
+                "INNER JOIN PLAZOS_COND_PAG PCP ON DCC.COND_PAGO_ID = PCP.COND_PAGO_ID " +
+                "WHERE DCC.FOLIO STARTING WITH 'Z' " +
+                "  AND DCC.ESTATUS = 'P' " +
+                "  AND DCC.COBRADOR_ID IN (" + inClause + ") " +
+                "  AND EXISTS (" +
+                "      SELECT 1 " +
+                "      FROM IMPORTES_DOCTOS_CC IDC " +
+                "      JOIN DOCTOS_CC DCCC ON DCCC.DOCTO_CC_ID = IDC.DOCTO_CC_ACR_ID " +
+                "      JOIN AH_PEDIDOS_ENRUTADOS PE ON PE.FOLIO_FACTURA = DCCC.FOLIO " +
+                "      WHERE IDC.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                "        AND PE.ESTATUS <> 'CERRADO' " +
+                "        AND PE.CHOFER_ID = ? " +
+                "  ) " +
+                "  AND NOT EXISTS (" +
+                "      SELECT 1 " +
+                "      FROM DEPOSITOS_CC_DET DCCD " +
+                "      WHERE DCCD.DOCTO_CC_ID = DCC.DOCTO_CC_ID " +
+                "  ) " +
+                "ORDER BY DCC.DOCTO_CC_ID";
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement preparedStatement = conexion.prepareStatement(sql)) {
+
+            int paramIndex = 1;
+
+            // Asignación parametrizada de cobradoresIds
+            for (Long cobradorId : cobradoresIds) {
+                preparedStatement.setLong(paramIndex++, cobradorId);
+            }
+
+            // Asignación parametrizada del choferId para el subquery
+            preparedStatement.setLong(paramIndex, choferId);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    CobroMicrosip cobroMicrosip = new CobroMicrosip();
+                    cobroMicrosip.setDoctoCCId(resultSet.getInt("DOCTO_CC_ID"));
+
+                    Date fecha = resultSet.getDate("FECHA");
+                    cobroMicrosip.setFechaAbono(fecha != null ? fecha.toString() : "");
+
+                    Time hora = resultSet.getTime("HORA");
+                    cobroMicrosip.setHoraAbono(hora != null ? hora.toString() : "");
+
+                    cobroMicrosip.setNombreCliente(resultSet.getString("NOMBRE"));
+                    cobroMicrosip.setFormaCobroCCId(resultSet.getInt("FORMA_COBRO_ID"));
+                    cobroMicrosip.setAbonoTotal(resultSet.getDouble("ABONO_TOTAL"));
+
+                    listaCobroMicrosip.add(cobroMicrosip);
+                }
+            }
+
+            logger.info("Consulta exitosa cobrosMicrosipChoferes. Total cobros obtenidos: " + listaCobroMicrosip.size());
+            return responseRequest.response(ResponseRequest.DataStatus.OK, listaCobroMicrosip, "Cobros para microsip obtenidos correctamente");
+
+        } catch (SQLException exception) {
+            logger.error("Excepción en cobrosMicrosipChoferes para ChoferID " + choferId + ": " + exception.getMessage(), exception);
+            return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al consultar cobros: " + exception.getMessage());
         }
     }
 }

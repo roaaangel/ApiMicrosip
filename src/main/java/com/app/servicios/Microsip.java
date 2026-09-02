@@ -1,5 +1,6 @@
 package com.app.servicios;
 
+import com.app.dao.Controlador;
 import com.app.dao.RepositorioDAO;
 import com.app.utilerias.ResponseRequest;
 import com.google.api.core.ApiFuture;
@@ -153,6 +154,23 @@ public class Microsip {
             System.out.println("Exception Error" + e);
         }
 
+        return null;
+    }
+    
+    @GET
+    @Path("/choferes")
+    @Produces("application/json")
+    public Response choferes() {
+      
+        Gson gson = new Gson();  
+        ResponseRequest responseRequest = controlador.choferes();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
         return null;
     }
     
@@ -568,6 +586,21 @@ public class Microsip {
         return null;
     }
     
+    @GET
+    @Path("/cobranzaRutasRefactor/{choferId}")
+    @Produces("application/json")
+    public Response cobranzaRutas(@PathParam("choferId") int choferId) {
+        try {           
+            
+           
+            return Response.ok(controlador.cobranzaRutasRefactor(choferId)).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }
+    
     @POST  
     @Path("/detalleDocumentoCXC")
     @Consumes({"application/json"})
@@ -706,4 +739,58 @@ public class Microsip {
         }
         return null;
     }
+    
+    @GET  
+    @Path("/rutaAsignadaYOrdenadaConMaps/{choferId}")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response rutaAsignadaYOrdenadaConMaps(@PathParam("choferId") int choferId) {
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.rutaAsignadaYOrdenadaConMaps(choferId);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @POST  
+    @Path("/cobrosMicrosipChoferes/{choferId}")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response cobrosMicrosipChoferes(@PathParam("choferId") Long choferId, String cobradoresJsonIds) throws SQLException {
+          
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.cobrosMicrosipChoferes(choferId, cobradoresJsonIds);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    /*@POST  
+    @Path("/createCobroXDepositarMicrosip")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response createCobroXDepositarMicrosip(String jsonString) throws SQLException {
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.createCobroXDepositarMicrosip(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }*/
 }

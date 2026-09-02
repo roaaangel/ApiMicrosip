@@ -36,7 +36,7 @@ import jakarta.ws.rs.core.Response;
  *
  * @author burtebony
  */
-@Path("/Microsip")
+@Path("/MicrosipOld")
 public class MicrosipOld {
     private Controlador controlador = new Controlador();
     

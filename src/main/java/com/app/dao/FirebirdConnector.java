@@ -17,13 +17,18 @@ public final class FirebirdConnector {
     static {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(ConnectionCliente.CONNECTION_BD);
-        config.setUsername(ConnectionCliente.USER);
+        config.setUsername(ConnectionCliente.USSER);
         config.setPassword(ConnectionCliente.PASSWORD);
         config.setDriverClassName("org.firebirdsql.jdbc.FBDriver");
 
-        config.setMaximumPoolSize(10);      // ajusta según carga esperada
-        config.setMinimumIdle(2);
-        config.setConnectionTimeout(5000);  // ms
+        // 1. Eleva el pool para absorber el pico
+        config.setMaximumPoolSize(25);      // En lugar de 10, permite responder a más peticiones a la vez
+
+        // 2. Manten las conexiones base bajas cuando no hay tráfico
+        config.setMinimumIdle(5);           
+
+        // 3. Da un margen más amplio de espera para evitar errores de Timeout en momentos de alta carga
+        config.setConnectionTimeout(10000);  // 10 segundos en lugar de 5s
         config.setIdleTimeout(60000);
         config.setMaxLifetime(1800000);
         config.setPoolName("FirebirdPool");

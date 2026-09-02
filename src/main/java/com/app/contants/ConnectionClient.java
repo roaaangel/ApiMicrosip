@@ -27,9 +27,9 @@ public abstract class ConnectionClient {
     //public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:C:/Microsip datos che/PRUEBAS_T.FDB";    
     /*public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:C:/Microsip datos_2024/PRUEBA MANUFACTURA.FDB";*/
     //public static String CONNECTION_BD = "jdbc:firebirdsql:native:localhost/3050:D:/Microsip datos chema/FERESMAR SA DE CV.FDB";
-    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "masterkey";
+    public static String PASSWORD = "masterkey";*/
     
 
    
@@ -363,9 +363,9 @@ public abstract class ConnectionClient {
     public static String PASSWORD = "masterkey";*/
     
     // Conexion BRIKA SAN JUAN DEL RIO
-    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/DISTRIBUIDORA BRYKA SJ.FDB";
+    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/resplado.fdb";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "PTC1640U";*/
+    public static String PASSWORD = "PTC1640U";
     
     //BRIKA
     /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/DISTRIBUIDORA BRYKA.FDB";

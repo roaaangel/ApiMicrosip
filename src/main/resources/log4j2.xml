@@ -3,8 +3,8 @@
 
     <Properties>
         <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n</Property>
-        <Property name="LOG_DIR">/Users/angelholberg/Documents/developer</Property>
-        <Property name="LOG_FILE">log_app_pyc</Property>
+        <Property name="LOG_DIR">C:/logs</Property>
+        <Property name="LOG_FILE">log_app_android</Property>
     </Properties>
 
     <Appenders>
