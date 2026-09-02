@@ -22,6 +22,7 @@ import com.app.models.DetallePedido;
 import com.app.models.ExistenciaArticulo;
 import com.app.models.FolioInfo;
 import com.app.models.HistoriaCambiaria;
+import com.app.models.Localizacion;
 import com.app.models.MaestroPedido;
 import com.app.models.Moneda;
 import com.app.models.MonedaHistoriaCambiaria;
@@ -33,6 +34,8 @@ import com.app.models.PoliticaXVolumen;
 import com.app.models.ProcesaPoliticas;
 import com.app.models.SerieFolioCXC;
 import com.app.models.TrimestreAnioInfo;
+import com.app.models.VisitaClienteGrabado;
+import com.app.models.VisitaEfectivaInefectiva;
 import com.app.models.almacenes.Almacen;
 import com.app.models.articulos.ArticuloRefactor;
 import com.app.models.clientes.ClienteRefactor;
@@ -42,6 +45,10 @@ import com.app.models.cobrosmicrosip.CobroMicrosip;
 import com.app.models.cobrosxdepositar.CobroXDepositar;
 import com.app.models.cobrosxdepositar.CobroXDepositarEnviado;
 import com.app.models.datosempresa.DatosEmpresa;
+import com.app.models.depositos.Deposito;
+import com.app.models.depositos.DepositoDetalle;
+import com.app.models.depositos.DepositoGrabado;
+import com.app.models.depositos.DepositoMaestro;
 import com.app.models.metodospago.MetodoPago;
 import com.app.models.promociones.Promocion;
 import com.app.models.vendedores.Vendedor;
@@ -2236,7 +2243,7 @@ public class RepositorioDAO {
             }
         }
 
-        Resources.logger.debug("Resultado existePedidoGuardado: " + new Gson().toJson(pedidoExistente));
+        logger.debug("Resultado existePedidoGuardado: " + new Gson().toJson(pedidoExistente));
         return pedidoExistente;
     }
    /**
@@ -2593,9 +2600,9 @@ public class RepositorioDAO {
                 psProc.executeUpdate(); // Alternativamente psProc.executeUpdate()
             }
 
-            Resources.logger.debug("Componentes de juego generados para DOCTO_VE_DET_ID: {}", doctoVeDetId);
+            logger.debug("Componentes de juego generados para DOCTO_VE_DET_ID: {}", doctoVeDetId);
         } else {
-            Resources.logger.warn("No se encontró DOCTO_VE_DET_ID para el artículo juego ID: {} en el documento ID: {}", articuloIdJuego, doctoVeId);
+            logger.warn("No se encontró DOCTO_VE_DET_ID para el artículo juego ID: {} en el documento ID: {}", articuloIdJuego, doctoVeId);
         }
     }
 
@@ -2613,7 +2620,7 @@ public class RepositorioDAO {
             preparedStatement.setString(4, folio);
 
             preparedStatement.executeUpdate();
-            Resources.logger.info("Pedido registrado correctamente en PEDIDOS_TRANSMITIDOS. UUID: {}, Folio: {}", uuid, folio);
+            logger.info("Pedido registrado correctamente en PEDIDOS_TRANSMITIDOS. UUID: {}, Folio: {}", uuid, folio);
         }
     }    
     
@@ -2897,7 +2904,7 @@ public class RepositorioDAO {
             java.util.Date date = new Date(ts.getTime());
             date = simpleDateFormat.parse(simpleDateFormat.format(date));
             java.sql.Date sqlDate = new java.sql.Date(date.getTime());
-            Resources.logger.info("FECHA:" + ts + "   "  +sqlDate);
+            logger.info("FECHA:" + ts + "   "  +sqlDate);
             return sqlDate;                       
         } catch (ParseException ex) {
             java.util.logging.Logger.getLogger(Controlador.class.getName()).log(Level.SEVERE, null, ex);
@@ -2919,7 +2926,7 @@ public class RepositorioDAO {
                 }
             }
         } catch (SQLException exception) {
-            Resources.logger.error("Error al verificar complemento de pagos para cargoId: {} - {}", cargoId, exception.getMessage());
+            logger.error("Error al verificar complemento de pagos para cargoId: {} - {}", cargoId, exception.getMessage());
             throw exception; // Re-lanza la excepción para que el llamador gestione el rollback si es necesario
         }
 
@@ -3065,8 +3072,208 @@ public class RepositorioDAO {
 
             return rs.next();
         } catch (SQLException e) {
-            Resources.logger.error("Error al consultar la operación de App Choferes: {}", e.getMessage(), e);
+            logger.error("Error al consultar la operación de App Choferes: {}", e.getMessage(), e);
             throw e;
+        }
+    }
+    
+    public ResponseRequest createDepositosRefactor(String jsonString) throws SQLException {
+        logger.info("Entrando a crear los depositos: " + jsonString);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<DepositoGrabado> listaDepositoGrabado = new ArrayList<>();
+        Gson gson = new Gson();
+
+        ConfiguracionMobil configuracionMobil = configuracionMicrosip();
+        Utilerias utilerias = new Utilerias();
+
+        String sqlGenId = "SELECT GEN_ID(ID_DOCTOS, 1) AS ID FROM RDB$DATABASE";
+
+        String sqlInsertDeposito = "INSERT INTO DEPOSITOS_CC (" +
+                "DEPOSITO_CC_ID, FECHA, FORMA_COBRO_CC_ID, SUCURSAL_ID, CUENTA_BAN_ID, " +
+                "REFER_MOVTO_BANCARIO, DESCRIPCION, IMPORTE, TIPO_CAMBIO, APLICADO, ESTATUS, FORMA_EMITIDA, " +
+                "USUARIO_CREADOR, FECHA_HORA_CREACION, USUARIO_AUT_CREACION, FECHA_HORA_ULT_MODIF, FECHA_HORA_CANCELACION) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.00, 'N', 'P', 'N', 'SYSDBA', CURRENT_TIMESTAMP, 'SYSDBA', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+
+        String sqlInsertDetalle = "INSERT INTO DEPOSITOS_CC_DET(DEPOSITO_CC_DET_ID, DEPOSITO_CC_ID, DOCTO_CC_ID) VALUES (?, ?, ?)";
+
+        try (Connection conexion = FirebirdConnector.getConnection()) {
+            try {
+                Type type = new TypeToken<Deposito>(){}.getType();
+                Deposito deposito = gson.fromJson(jsonString, type);
+
+                conexion.setAutoCommit(false);
+
+                if (configuracionMobil.getOperaDepositos() == 1) {
+                    for (DepositoMaestro depositoMaestro : deposito.getListaDepositosParaMicrosip()) {
+
+                        int idAutoIncremental = 0;
+                        try (PreparedStatement psGenId = conexion.prepareStatement(sqlGenId);
+                             ResultSet resultSet = psGenId.executeQuery()) {
+                            if (resultSet.next()) {
+                                idAutoIncremental = resultSet.getInt("ID");
+                            }
+                        }
+                        logger.info("ID GENERADO: " + idAutoIncremental);
+
+                        int sucursalIdFinal = (configuracionMobil.getOperaSucursalAlmacen() == 1) 
+                                ? depositoMaestro.getSucursalId() 
+                                : configuracionMobil.getSucursalId();
+
+                        logger.info((configuracionMobil.getOperaSucursalAlmacen() == 1 ? "MOBIL" : "CONFIGURACION MOBIL") 
+                                + " sucursalId: " + sucursalIdFinal);
+
+                        try (PreparedStatement psInsertDeposito = conexion.prepareStatement(sqlInsertDeposito)) {
+                            psInsertDeposito.setInt(1, idAutoIncremental);
+                            psInsertDeposito.setString(2, depositoMaestro.getFecha());
+                            psInsertDeposito.setInt(3, depositoMaestro.getFormaCobroCCId());
+                            psInsertDeposito.setInt(4, sucursalIdFinal);
+                            psInsertDeposito.setInt(5, depositoMaestro.getCuentaBancariaId());
+                            psInsertDeposito.setString(6, depositoMaestro.getReferencia());
+                            psInsertDeposito.setString(7, depositoMaestro.getDescripcion());
+                            psInsertDeposito.setDouble(8, depositoMaestro.getImporte());
+
+                            psInsertDeposito.executeUpdate();
+                        }
+                        logger.info("Save table [DEPOSITOS_CC] id: " + idAutoIncremental);
+
+                        try (PreparedStatement psInsertDetalle = conexion.prepareStatement(sqlInsertDetalle)) {
+                            for (DepositoDetalle detalle : depositoMaestro.getDepositoDetalle()) {
+                                psInsertDetalle.setInt(1, -1);
+                                psInsertDetalle.setInt(2, idAutoIncremental);
+                                psInsertDetalle.setInt(3, detalle.getDoctoCCId());
+                                psInsertDetalle.executeUpdate();
+                                logger.info("Save table [DEPOSITOS_CC_DET]");
+                            }
+                        }
+
+                        DepositoGrabado depositoGrabado = new DepositoGrabado();
+                        depositoGrabado.setId(depositoMaestro.getId());
+                        listaDepositoGrabado.add(depositoGrabado);
+                    }
+                }
+
+                conexion.commit();
+                return responseRequest.response(ResponseRequest.DataStatus.OK, listaDepositoGrabado, "Depósitos grabados correctamente");
+
+            } catch (SQLException exception) {
+                logger.error("SUCEDIO UNA EXEPCION al grabar depósitos: " + exception.getMessage());
+                conexion.rollback();
+                exception.printStackTrace();
+                return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al procesar los depósitos " + exception.getMessage());
+            }
+        }
+    }
+    
+    public ResponseRequest createVisitasClientes(String jsonVisitasClientes) throws SQLException {
+        logger.info("Se ha llamado al recurso REST mediante una peticion POST (createVisitasClientes) " + jsonVisitasClientes);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<VisitaClienteGrabado> listaVisitaClienteGrabado = new ArrayList<>();
+
+        String sqlInsert = "INSERT INTO GEOLOCALIZACION_CLIENTES " +
+                "(CLIENTE_ID, LATITUD, LONGITUD, FECHA, HORA, PROCESO, VENDEDOR_ID, MONTO_REALIZADO) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conexion = FirebirdConnector.getConnection()) {
+            try {
+                Type type = new TypeToken<List<Localizacion>>(){}.getType();
+                List<Localizacion> listaLocalizacion = new Gson().fromJson(jsonVisitasClientes, type);
+
+                if (listaLocalizacion == null || listaLocalizacion.isEmpty()) {
+                    return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Sin registros para procesar");
+                }
+
+                //conexion.setAutoCommit(false);
+                Utilerias utilerias = new Utilerias();
+
+                try (PreparedStatement preparedStatementObj = conexion.prepareStatement(sqlInsert)) {
+                    for (Localizacion localizacion : listaLocalizacion) {
+                        preparedStatementObj.setInt(1, localizacion.getCliente_id());
+                        preparedStatementObj.setDouble(2, localizacion.getLatitud());
+                        preparedStatementObj.setDouble(3, localizacion.getLongitud());
+                        preparedStatementObj.setDate(4, utilerias.convertStringToDate(localizacion.getFecha()));
+                        preparedStatementObj.setTime(5, utilerias.convertStringToTime(localizacion.getHora()));
+                        preparedStatementObj.setString(6, localizacion.getProceso());
+                        preparedStatementObj.setInt(7, localizacion.getVendedor_id());
+                        preparedStatementObj.setDouble(8, localizacion.getMonto_realizado());
+
+                        preparedStatementObj.addBatch();
+
+                        // Preparamos la respuesta de sincronización Android
+                        VisitaClienteGrabado visitaClienteGrabadoObject = new VisitaClienteGrabado();
+                        visitaClienteGrabadoObject.setId(localizacion.getId());
+                        visitaClienteGrabadoObject.setIdGenerado(localizacion.getId());
+                        listaVisitaClienteGrabado.add(visitaClienteGrabadoObject);
+                    }
+
+                    preparedStatementObj.executeBatch();
+                }
+
+                //conexion.commit();
+                return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Visitas a clientes grabadas correctamente");
+
+            } catch (SQLException exception) {
+                //conexion.rollback();                
+                logger.error("SUCEDIO UNA EXEPCION en la cabecera createVisitasClientes: " + exception.getMessage());
+                exception.printStackTrace();
+                return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al crear visitas - clientes: " + exception.getMessage());
+            }
+        }
+    }
+    
+    public ResponseRequest visitasEfectivasInefectivas(String jsonVisitasClientes) throws SQLException {
+        logger.info("Se ha llamado al recurso REST mediante una peticion POST (visitasEfectivasInefectivas) " + jsonVisitasClientes);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        List<VisitaClienteGrabado> listaVisitaClienteGrabado = new ArrayList<>();
+
+        String sqlInsert = "INSERT INTO VISITAS_EFECTIVAS_INEFECTIVAS " +
+                "(VENDEDOR_ID, CLIENTE_ID, VISITA, FECHA, HORA, MOTIVO_ID) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conexion = FirebirdConnector.getConnection()) {
+            try {
+                Type type = new TypeToken<List<VisitaEfectivaInefectiva>>(){}.getType();
+                List<VisitaEfectivaInefectiva> listaVisitasEfectivasInefectivas = new Gson().fromJson(jsonVisitasClientes, type);
+
+                if (listaVisitasEfectivasInefectivas == null || listaVisitasEfectivasInefectivas.isEmpty()) {
+                    return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Sin registros de visitas para procesar");
+                }
+
+                //conexion.setAutoCommit(false);
+                Utilerias utilerias = new Utilerias();
+
+                try (PreparedStatement preparedStatementObj = conexion.prepareStatement(sqlInsert)) {
+                    for (VisitaEfectivaInefectiva visitaEfectivaInefectiva : listaVisitasEfectivasInefectivas) {
+                        preparedStatementObj.setInt(1, visitaEfectivaInefectiva.getVendedorId());
+                        preparedStatementObj.setInt(2, visitaEfectivaInefectiva.getClienteId());
+                        preparedStatementObj.setString(3, visitaEfectivaInefectiva.getVisita());
+                        preparedStatementObj.setDate(4, utilerias.convertStringToDate(visitaEfectivaInefectiva.getFecha()));
+                        preparedStatementObj.setTime(5, utilerias.convertStringToTime(visitaEfectivaInefectiva.getHora()));
+                        preparedStatementObj.setInt(6, visitaEfectivaInefectiva.getMotivoId());
+
+                        preparedStatementObj.addBatch();
+
+                        // Objeto para retornar a Android con la confirmación de IDs recibidos
+                        VisitaClienteGrabado visitaClienteGrabadoObject = new VisitaClienteGrabado();
+                        visitaClienteGrabadoObject.setId(visitaEfectivaInefectiva.getId());
+                        visitaClienteGrabadoObject.setIdGenerado(visitaEfectivaInefectiva.getId());
+                        listaVisitaClienteGrabado.add(visitaClienteGrabadoObject);
+                    }
+
+                    preparedStatementObj.executeBatch();
+                }
+
+                //conexion.commit();
+                return responseRequest.response(ResponseRequest.DataStatus.OK, listaVisitaClienteGrabado, "Visitas a clientes grabadas correctamente");
+
+            } catch (SQLException exception) {
+                //conexion.rollback();                
+                logger.error("SUCEDIO UNA EXEPCION en la cabecera visitasEfectivasInefectivas: " + exception.getMessage());
+                exception.printStackTrace();
+                return responseRequest.response(ResponseRequest.DataStatus.ERROR, null, "Error al crear visitas - clientes: " + exception.getMessage());
+            }
         }
     }
 }
