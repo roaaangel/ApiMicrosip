@@ -22,7 +22,7 @@ public final class FirebirdConnector {
         config.setDriverClassName("org.firebirdsql.jdbc.FBDriver");
 
         // 1. Eleva el pool para absorber el pico
-        config.setMaximumPoolSize(25);      // En lugar de 10, permite responder a más peticiones a la vez
+        config.setMaximumPoolSize(30);      // En lugar de 10, permite responder a más peticiones a la vez
 
         // 2. Manten las conexiones base bajas cuando no hay tráfico
         config.setMinimumIdle(5);           

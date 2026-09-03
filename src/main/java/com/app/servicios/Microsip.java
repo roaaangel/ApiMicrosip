@@ -118,6 +118,23 @@ public class Microsip {
         return null;
     }
     
+    @GET  
+    @Path("/ultimaMetadataMicrosip")
+    @Produces("application/json")
+    public Response ultimaMetadataMicrosip() {
+
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.ultimaMetadataMicrosip();        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
     @GET
     @Path("/datosEmpresa")
     @Produces("application/json")

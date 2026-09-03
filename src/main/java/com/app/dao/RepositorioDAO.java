@@ -25,6 +25,7 @@ import com.app.models.FolioInfo;
 import com.app.models.HistoriaCambiaria;
 import com.app.models.Localizacion;
 import com.app.models.MaestroPedido;
+import com.app.models.Metadata;
 import com.app.models.Moneda;
 import com.app.models.MonedaHistoriaCambiaria;
 import com.app.models.Motivo;
@@ -120,7 +121,53 @@ public class RepositorioDAO {
             return "Script fallido: " + e.getMessage();
         }
     }
+    
+    public ResponseRequest ultimaMetadataMicrosip() {
+        logger.info("Iniciando consulta de ultimaMetadataMicrosip");
 
+        String sql = "SELECT FIRST 1 VERSION_DB, FECHA_HORA_CREACION, PASO_ACTUAL " +
+                     "FROM VERSIONES_DB " +
+                     "ORDER BY VERSION_DB DESC";
+
+        ResponseRequest responseRequest = new ResponseRequest();
+        Metadata metadata = new Metadata();
+        Utilerias utilerias = new Utilerias();
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement ps = conexion.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) {
+                metadata.setVersionDB(rs.getInt("VERSION_DB"));
+
+                metadata.setFechaHoraCreacion(
+                        utilerias.timeStampToString(
+                                rs.getTimestamp("FECHA_HORA_CREACION")
+                        )
+                );
+
+                metadata.setPasoActual(rs.getInt("PASO_ACTUAL"));
+            } else {
+                logger.warn("No se encontró ningún registro de metadata en VERSIONES_DB");
+            }
+
+            logger.info("Metadata consultada correctamente. Versión actual DB: " + metadata.getVersionDB());
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.OK,
+                    metadata,
+                    "Metadata consultada correctamente."
+            );
+
+        } catch (SQLException exception) {
+            logger.error("Excepción en ultimaMetadataMicrosip: " + exception.getMessage(), exception);
+
+            return responseRequest.response(
+                    ResponseRequest.DataStatus.ERROR,
+                    null,
+                    "Error al consultar metadata: " + exception.getMessage()
+            );
+        }
+    }
 
     public String datosEmpresa() {
         try (Connection connection = FirebirdConnector.getConnection()) {
@@ -3260,12 +3307,7 @@ public class RepositorioDAO {
 
         String sqlGenId = "SELECT GEN_ID(ID_DOCTOS, 1) AS ID FROM RDB$DATABASE";
 
-        String sqlInsertDeposito = "INSERT INTO DEPOSITOS_CC (" +
-                "DEPOSITO_CC_ID, FECHA, FORMA_COBRO_CC_ID, SUCURSAL_ID, CUENTA_BAN_ID, " +
-                "REFER_MOVTO_BANCARIO, DESCRIPCION, IMPORTE, TIPO_CAMBIO, APLICADO, ESTATUS, FORMA_EMITIDA, " +
-                "USUARIO_CREADOR, FECHA_HORA_CREACION, USUARIO_AUT_CREACION, FECHA_HORA_ULT_MODIF, FECHA_HORA_CANCELACION) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1.00, 'N', 'P', 'N', 'SYSDBA', CURRENT_TIMESTAMP, 'SYSDBA', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
-
+        
         String sqlInsertDetalle = "INSERT INTO DEPOSITOS_CC_DET(DEPOSITO_CC_DET_ID, DEPOSITO_CC_ID, DOCTO_CC_ID) VALUES (?, ?, ?)";
 
         try (Connection conexion = FirebirdConnector.getConnection()) {
@@ -3286,6 +3328,13 @@ public class RepositorioDAO {
                             }
                         }
                         logger.info("ID GENERADO: " + idAutoIncremental);
+                        
+                        String sqlInsertDeposito = "INSERT INTO DEPOSITOS_CC (" +
+                        "DEPOSITO_CC_ID, FECHA, FORMA_COBRO_CC_ID, SUCURSAL_ID, CUENTA_BAN_ID, " +
+                        "REFER_MOVTO_BANCARIO, DESCRIPCION, IMPORTE, TIPO_CAMBIO, APLICADO, ESTATUS, FORMA_EMITIDA, " +
+                        "USUARIO_CREADOR, FECHA_HORA_CREACION, USUARIO_AUT_CREACION, FECHA_HORA_ULT_MODIF, FECHA_HORA_CANCELACION) " +
+                        "VALUES (";
+
 
                         int sucursalIdFinal = (configuracionMobil.getOperaSucursalAlmacen() == 1) 
                                 ? depositoMaestro.getSucursalId() 
@@ -3293,17 +3342,29 @@ public class RepositorioDAO {
 
                         logger.info((configuracionMobil.getOperaSucursalAlmacen() == 1 ? "MOBIL" : "CONFIGURACION MOBIL") 
                                 + " sucursalId: " + sucursalIdFinal);
+                        
+                        sqlInsertDeposito = sqlInsertDeposito + idAutoIncremental + ", ";                                                                        
+                        sqlInsertDeposito = sqlInsertDeposito + "'" + depositoMaestro.getFecha() + "', ";                    
+                        sqlInsertDeposito = sqlInsertDeposito + depositoMaestro.getFormaCobroCCId() + ", ";
+                        
+                        sqlInsertDeposito = sqlInsertDeposito + sucursalIdFinal + ", ";
+                        
+                        sqlInsertDeposito = sqlInsertDeposito + depositoMaestro.getCuentaBancariaId() + ", ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'" + depositoMaestro.getReferencia() + "', ";                    
+                        sqlInsertDeposito = sqlInsertDeposito + "'" + depositoMaestro.getDescripcion() + "', ";                    
+                        sqlInsertDeposito = sqlInsertDeposito + depositoMaestro.getImporte() + ", ";             
+                        sqlInsertDeposito = sqlInsertDeposito + "1.00, ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'N', ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'P', ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'N', ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'SYSDBA', ";
+                        sqlInsertDeposito = sqlInsertDeposito + "CURRENT_TIMESTAMP, ";
+                        sqlInsertDeposito = sqlInsertDeposito + "'SYSDBA', ";
+                        sqlInsertDeposito = sqlInsertDeposito + "CURRENT_TIMESTAMP, ";
+                        sqlInsertDeposito = sqlInsertDeposito + "CURRENT_TIMESTAMP) ";                                              
 
                         try (PreparedStatement psInsertDeposito = conexion.prepareStatement(sqlInsertDeposito)) {
-                            psInsertDeposito.setInt(1, idAutoIncremental);
-                            psInsertDeposito.setString(2, depositoMaestro.getFecha());
-                            psInsertDeposito.setInt(3, depositoMaestro.getFormaCobroCCId());
-                            psInsertDeposito.setInt(4, sucursalIdFinal);
-                            psInsertDeposito.setInt(5, depositoMaestro.getCuentaBancariaId());
-                            psInsertDeposito.setString(6, depositoMaestro.getReferencia());
-                            psInsertDeposito.setString(7, depositoMaestro.getDescripcion());
-                            psInsertDeposito.setDouble(8, depositoMaestro.getImporte());
-
+                            
                             psInsertDeposito.executeUpdate();
                         }
                         logger.info("Save table [DEPOSITOS_CC] id: " + idAutoIncremental);

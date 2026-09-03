@@ -1,8 +1,7 @@
 package com.app.contants;
 
 public final class ConnectionCliente {
-    /*public static final String CONNECTION_BD =
-            "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    /*public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
     public static final String USSER = "SYSDBA";
     public static final String PASSWORD = "masterkey";*/
     
@@ -17,9 +16,14 @@ public final class ConnectionCliente {
     public static String PASSWORD = "R3tr4.7c";*/
     
     // Conexoón FERREMAYOREO BARBADO QA
-    public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.242/3050:C:/Microsip datos/FERREMAYOREO QA.FDB";
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.242/3050:C:/Microsip datos/FERREMAYOREO QA.FDB";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "masterkey";
+    public static String PASSWORD = "masterkey";*/
+    
+    ///PROCEDA
+    public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.90/3050:C:/Microsip datos/PROCEDA MASTER FERRETERO.FDB";
+    public static String USSER = "SYSDBA";
+    public static String PASSWORD = "FerreKaza21!";
    
 
     private ConnectionCliente() {
