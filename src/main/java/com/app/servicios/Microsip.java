@@ -793,7 +793,7 @@ public class Microsip {
         return null;
     }
     
-    /*@POST  
+    @POST  
     @Path("/createCobroXDepositarMicrosip")
     @Consumes({"application/json"})
     @Produces("application/json")
@@ -809,5 +809,5 @@ public class Microsip {
             return Response.status(500).entity(data).build();                   
         }
         return null;
-    }*/
+    }
 }
