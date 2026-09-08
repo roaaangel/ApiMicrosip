@@ -43,6 +43,8 @@ import com.app.models.TrimestreAnioInfo;
 import com.app.models.VisitaClienteGrabado;
 import com.app.models.VisitaEfectivaInefectiva;
 import com.app.models.almacenes.Almacen;
+import com.app.models.articuloalmacen.ArticuloAlmacen;
+import com.app.models.articulos.Articulo;
 import com.app.models.articulos.ArticuloRefactor;
 import com.app.models.clientes.ClienteRefactor;
 import com.app.models.cobradores.Cobrador;
@@ -62,6 +64,8 @@ import com.app.models.vendedorescobradores.VendedorCobrador;
 import com.app.servicios.Resources;
 import com.app.utilerias.ResponseRequest;
 import com.app.utilerias.Utileria;
+import com.app.utilerias.fecha.Fecha;
+import com.app.utilerias.fecha.FechaHora;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
@@ -2789,7 +2793,7 @@ public class RepositorioDAO {
                ps.executeUpdate();
 
                if ("S".equals(detalle.getEs_juego())) {
-                   createDetalleJuego(conexion, detalleId, detalle.getArticulo_id());
+                   createDetalleJuego(conexion, doctoVeId, detalle.getArticulo_id());
                }
            }
        }
@@ -3923,6 +3927,163 @@ public class RepositorioDAO {
         } catch (Exception exception) {
             logger.error("{} EXCEPCION GENERAL: {}", errorMessage, exception.getMessage(), exception);
             return responseRequest.response(ResponseRequest.DataStatus.ERROR, abonoMaestroEntity, exception.getMessage());
+        }
+    }
+    
+    public String getArticuloPrecio(String articulo) throws SQLException {
+        logger.info("Entrando a buscar artículos y precios en Microsip");
+
+        // Construcción del término de búsqueda para consultas parciales por palabra
+        String[] arrayBusqueda = articulo.trim().split("\\s+");
+        StringBuilder busquedaBuilder = new StringBuilder();
+
+        for (int i = 0; i < arrayBusqueda.length; i++) {
+            busquedaBuilder.append(arrayBusqueda[i]);
+            if (i < arrayBusqueda.length - 1) {
+                busquedaBuilder.append("%");
+            }
+        }
+
+        // El patrón final para los operadores LIKE parametrizados
+        String terminoBusqueda = busquedaBuilder.toString().toUpperCase() + "%";
+
+        String sql = "SELECT ARTICULO_ID, NOMBRE_ARTICULO, PRECIO_NETO, CODIGO_ARTICULO, CLAVE_ARTICULO "
+                + "FROM POLITICAS_ARTS_PROMO_VOL_AH(?, ?, ?) "
+                + "WHERE UPPER(NOMBRE_ARTICULO) LIKE ? "
+                + "   OR UPPER(CODIGO_ARTICULO) LIKE ? "
+                + "   OR UPPER(CLAVE_ARTICULO) LIKE ?";
+
+        List<Articulo> listaArticuloPrecios = new ArrayList<>();
+
+        FechaHora fechaHora = new FechaHora();
+        Fecha fechaInicioFin = fechaHora.fechaInicioFin();
+
+        ConfiguracionMobil configuracionMobil = configuracionMicrosip();
+        try (Connection conexion = FirebirdConnector.getConnection(); PreparedStatement preparedStatement = conexion.prepareStatement(sql)) {
+
+            // Parámetros del Stored Procedure/Selectable Procedure
+            preparedStatement.setInt(1, configuracionMobil.getPrecioEmpresaId());
+            preparedStatement.setDate(2, fechaInicioFin.getFechaInicio());
+            preparedStatement.setDate(3, fechaInicioFin.getFechaFin());
+
+            // Parámetros de los filtros WHERE LIKE
+            preparedStatement.setString(4, terminoBusqueda);
+            preparedStatement.setString(5, terminoBusqueda);
+            preparedStatement.setString(6, terminoBusqueda);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    Articulo articuloObject = new Articulo();
+                    articuloObject.setArticuloId(resultSet.getInt("ARTICULO_ID"));
+
+                    String nombreArticulo = resultSet.getString("NOMBRE_ARTICULO");
+                    if (nombreArticulo != null) {
+                        nombreArticulo = nombreArticulo.replace("'", "\"");
+                    }
+                    articuloObject.setNombreArticulo(nombreArticulo);
+
+                    articuloObject.setPrecioNeto(resultSet.getDouble("PRECIO_NETO"));
+
+                    String codigoArticulo = resultSet.getString("CODIGO_ARTICULO");
+                    if (codigoArticulo != null) {
+                        codigoArticulo = escapeCharacters(codigoArticulo.replace("'", "\""));
+                    }
+                    articuloObject.setCodigoArticulo(codigoArticulo);
+
+                    String claveArticulo = resultSet.getString("CLAVE_ARTICULO");
+                    if (claveArticulo != null) {
+                        claveArticulo = escapeCharacters(claveArticulo.replace("'", "\""));
+                    }
+                    articuloObject.setClaveArticulo(claveArticulo);
+
+                    listaArticuloPrecios.add(articuloObject);
+                }
+            }
+
+            logger.info("Consulta de artículos exitosa. Total encontrados: " + listaArticuloPrecios.size());
+            return gson.toJson(listaArticuloPrecios);
+
+        } catch (SQLException e) {
+            logger.error("Error SQL al buscar artículos en getArticuloPrecio: " + e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Excepción general al buscar artículos en getArticuloPrecio: " + e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    public String articulosAlmacenes(String articulo) throws SQLException {
+        logger.info("Entrando a buscar existencias de artículos por almacén");
+
+        if (articulo == null || articulo.trim().isEmpty()) {
+            return gson.toJson(new ArrayList<ArticuloAlmacen>());
+        }
+
+        // Construcción del término de búsqueda parametrizado
+        String[] arrayBusqueda = articulo.trim().split("\\s+");
+        StringBuilder busquedaBuilder = new StringBuilder();
+
+        for (int i = 0; i < arrayBusqueda.length; i++) {
+            busquedaBuilder.append(arrayBusqueda[i]);
+            if (i < arrayBusqueda.length - 1) {
+                busquedaBuilder.append("%");
+            }
+        }
+
+        String terminoBusqueda = busquedaBuilder.toString().toUpperCase() + "%";
+
+        // Consulta SQL con precedencia de operadores corregida usando paréntesis
+        String sql = "SELECT ARTICULO_ID, NOMBRE_ARTICULO, CODIGO_ARTICULO, CLAVE_ARTICULO, " +
+                     "ALMACEN_ID, NOMBRE_ALMACEN, EXISTENCIA " +
+                     "FROM ARTICULOS_ALMACEN " +
+                     "WHERE ALMACEN_ID IN (19, 438052) " +
+                     "  AND (UPPER(NOMBRE_ARTICULO) LIKE ? " +
+                     "   OR UPPER(CODIGO_ARTICULO) LIKE ? " +
+                     "   OR UPPER(CLAVE_ARTICULO) LIKE ?)";
+
+        List<ArticuloAlmacen> listaArticulosAlmacenes = new ArrayList<>();
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement preparedStatement = conexion.prepareStatement(sql)) {
+
+            // Asignación de parámetros LIKE
+            preparedStatement.setString(1, terminoBusqueda);
+            preparedStatement.setString(2, terminoBusqueda);
+            preparedStatement.setString(3, terminoBusqueda);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    ArticuloAlmacen articuloAlmacen = new ArticuloAlmacen();
+
+                    articuloAlmacen.setArticuloId(resultSet.getInt("ARTICULO_ID"));
+
+                    String codigo = resultSet.getString("CODIGO_ARTICULO") != null ? resultSet.getString("CODIGO_ARTICULO") : "";
+                    String clave = resultSet.getString("CLAVE_ARTICULO") != null ? resultSet.getString("CLAVE_ARTICULO") : "";
+                    String nombre = resultSet.getString("NOMBRE_ARTICULO") != null ? resultSet.getString("NOMBRE_ARTICULO") : "";
+
+                    articuloAlmacen.setCodigo(codigo);
+                    articuloAlmacen.setClave(clave);
+                    articuloAlmacen.setNombreArticulo(codigo + "   " + clave + "   " + nombre);
+
+                    articuloAlmacen.setAlmacenId(resultSet.getInt("ALMACEN_ID"));
+                    articuloAlmacen.setNombreAlmacen(resultSet.getString("NOMBRE_ALMACEN"));
+
+                    double existencia = resultSet.getDouble("EXISTENCIA");
+                    articuloAlmacen.setExistencia(existencia <= 0 ? 0.0 : existencia);
+
+                    listaArticulosAlmacenes.add(articuloAlmacen);
+                }
+            }
+
+            logger.info("Consulta de existencias exitosa. Total encontrados: " + listaArticulosAlmacenes.size());
+            return gson.toJson(listaArticulosAlmacenes);
+
+        } catch (SQLException e) {
+            logger.error("Error SQL al consultar existencias en articulosAlmacenes: " + e.getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Excepción general en articulosAlmacenes: " + e.getMessage(), e);
+            return null;
         }
     }
 }

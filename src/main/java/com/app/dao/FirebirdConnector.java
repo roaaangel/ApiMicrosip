@@ -31,6 +31,9 @@ public final class FirebirdConnector {
         config.setConnectionTimeout(10000);  // 10 segundos en lugar de 5s
         config.setIdleTimeout(60000);
         config.setMaxLifetime(1800000);
+        // 4. Detecta conexiones que no se liberan (fugas)
+        config.setLeakDetectionThreshold(30000); // 30s, loguea si una conexión no se libera
+        
         config.setPoolName("FirebirdPool");
 
         dataSource = new HikariDataSource(config);

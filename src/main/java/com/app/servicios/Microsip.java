@@ -810,4 +810,30 @@ public class Microsip {
         }
         return null;
     }
+    
+    @GET
+    @Path("/articulosPrecios/{articulo}")
+    @Produces("application/json")
+    public Response articulosPrecios(@PathParam("articulo") String articulo) {
+        try {
+            return Response.ok(controlador.getArticuloPrecio(articulo)).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }     
+    
+    @GET
+    @Path("/articulosAlmacenes/{articulo}")
+    @Produces("application/json")
+    public Response articulosAlmacenes(@PathParam("articulo") String articulo) {
+        try {            
+            return Response.ok(controlador.articulosAlmacenes(articulo)).build();            
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    } 
 }
