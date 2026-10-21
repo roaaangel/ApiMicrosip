@@ -836,4 +836,34 @@ public class Microsip {
 
         return null;
     } 
+    
+    @POST  
+    @Path("/estatusRuta")
+    @Consumes({"application/json"})
+    @Produces("application/json")
+    public Response estatusRuta(String jsonString) throws SQLException {
+        Gson gson = new Gson(); 
+        ResponseRequest responseRequest = controlador.estatusRuta(jsonString);        
+        if (responseRequest.getStatus() == ResponseRequest.DataStatus.OK){            
+            String data = gson.toJson(responseRequest.getData());
+            return Response.ok(data).build();                  
+        } else if (responseRequest.getStatus() == ResponseRequest.DataStatus.ERROR){            
+            String data = responseRequest.getMensaje();
+            return Response.status(500).entity(data).build();                   
+        }
+        return null;
+    }
+    
+    @GET
+    @Path("/cobranzaRutasXAgenteDiario/{vendedorId}")
+    @Produces("application/json")
+    public Response cobranzaRutasXAgenteDiario(@PathParam("vendedorId") int vendedorId) {
+        try {            
+            return Response.ok(controlador.cobranzaRutasXAgenteDiario(vendedorId)).build();
+        } catch (Exception e) {
+            System.out.println("Exception Error" + e);
+        }
+
+        return null;
+    }    
 }

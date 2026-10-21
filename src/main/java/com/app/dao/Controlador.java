@@ -6744,7 +6744,7 @@ public class Controlador {
 
             PreparedStatement preparedStatement = conexion.prepareStatement(
                     "SELECT ARTICULO_ID, NOMBRE_ARTICULO, CODIGO_ARTICULO, CLAVE_ARTICULO," +
-                    " ALMACEN_ID, NOMBRE_ALMACEN, EXISTENCIA FROM ARTICULOS_ALMACEN WHERE ALMACEN_ID IN (19,438052) AND " +
+                    " ALMACEN_ID, NOMBRE_ALMACEN, EXISTENCIA FROM ARTICULOS_ALMACEN WHERE " +
                     " (UPPER(NOMBRE_ARTICULO) LIKE '" + articulo.toUpperCase() + "%' )" +                 
                     " OR UPPER(CODIGO_ARTICULO) LIKE '" + articulo.toUpperCase() + "%'" +
                     " OR UPPER(CLAVE_ARTICULO) LIKE '" + articulo.toUpperCase() + "%'");

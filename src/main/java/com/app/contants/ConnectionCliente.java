@@ -26,8 +26,8 @@ public final class ConnectionCliente {
     //3.- BRIKA SAN JUAN DEL RIO
     /*public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/DISTRIBUIDORA BRYKA SJ.fdb";
     public static final String USSER = "SYSDBA"; 
-    public static final String PASSWORD = "PTC1640U";*/ 
-        
+    public static final String PASSWORD = "PTC1640U";*/
+    
     //4.- BRIKA
     /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/DISTRIBUIDORA BRYKA.FDB";
     public static String USSER = "SYSDBA"; 
@@ -39,16 +39,31 @@ public final class ConnectionCliente {
     public static String PASSWORD = "darkhorse1722";*/
     
     //6.- Conexion Difalt (TOLUCA)   
-    /*public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.203/3050:C:/Microsip datos/DIFALT.FDB";
+    public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.203/3050:C:/Microsip datos/DIFALT.FDB";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "Dif160212#";*/
+    public static String PASSWORD = "Dif160212#";
+    
+    
+    //8.- Conexion SUNEGO_PUEBLA    
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:C:/Microsip datos/SUNEGO.FDB";    
+    public static String USSER = "SYSDBA";     
+    public static String PASSWORD = "$un&g@";*/
+    
+    //9.- CLIENTE DIAKONIA
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos/DIAKONIA.FDB";
+    public static String USSER = "SYSDBA"; 
+    public static String PASSWORD = "K9#dR@4Wx$1nF";*/
     
     //CLIENTE CADENA24 TOLUCA
-    public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.10/3050:C:/Microsip datos/CADENA24.FDB";
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.10/3050:C:/Microsip datos/CADENA24.FDB";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "!%7s33vT8fk$d";
+    public static String PASSWORD = "!%7s33vT8fk$d";*/
     
-
+    // Cliente JADAL
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:192.168.1.68/3050:/microsip/JADAL.fdb";
+    public static String USSER = "SYSDBA"; 
+    public static String PASSWORD = "J@d@1*1010";*/
+           
     private ConnectionCliente() {
         // clase utilitaria, no instanciable
     }

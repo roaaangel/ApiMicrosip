@@ -37,6 +37,7 @@ import com.app.models.PoliticaCliente;
 import com.app.models.PoliticaDescuentoArticuloClienteRefactor;
 import com.app.models.PoliticaXVolumen;
 import com.app.models.ProcesaPoliticas;
+import com.app.models.RutaDTO;
 import com.app.models.RutaOrdenadaConMaps;
 import com.app.models.SerieFolioCXC;
 import com.app.models.TrimestreAnioInfo;
@@ -1544,13 +1545,13 @@ public class RepositorioDAO {
                 }
             }
 
-            if (serieFolioCXC == null) {
+            /*if (serieFolioCXC == null) {
                 return responseRequest.response(
                     ResponseRequest.DataStatus.ERROR, 
                     null, 
                     "No se encontró serie y folio para el cobrador especificado"
                 );
-            }
+            }*/
 
             return responseRequest.response(
                 ResponseRequest.DataStatus.OK, 
@@ -4036,8 +4037,8 @@ public class RepositorioDAO {
         String sql = "SELECT ARTICULO_ID, NOMBRE_ARTICULO, CODIGO_ARTICULO, CLAVE_ARTICULO, " +
                      "ALMACEN_ID, NOMBRE_ALMACEN, EXISTENCIA " +
                      "FROM ARTICULOS_ALMACEN " +
-                     "WHERE ALMACEN_ID IN (19, 438052) " +
-                     "  AND (UPPER(NOMBRE_ARTICULO) LIKE ? " +
+                     //"WHERE ALMACEN_ID IN (19, 438052) " +
+                     "  WHERE (UPPER(NOMBRE_ARTICULO) LIKE ? " +
                      "   OR UPPER(CODIGO_ARTICULO) LIKE ? " +
                      "   OR UPPER(CLAVE_ARTICULO) LIKE ?)";
 
@@ -4083,6 +4084,118 @@ public class RepositorioDAO {
             throw e;
         } catch (Exception e) {
             logger.error("Excepción general en articulosAlmacenes: " + e.getMessage(), e);
+            return null;
+        }
+    }
+    
+    public ResponseRequest estatusRuta(String jsonString) {
+        logger.info("Entrando a actualizar la ruta " + jsonString);
+
+        ResponseRequest responseRequest = new ResponseRequest();
+
+        String sql = "UPDATE RUTAS_MAPS_ORDEN " +
+                     "SET ESTATUS_CLIENTE = ?, LATITUD_PE = ?, LONGITUD_PE = ?, ES_MOCK = ?, GPS_PRECISION = ? " +
+                     "WHERE ID = ?";
+
+        try {
+            List<RutaDTO> listaRutas = gson.fromJson(jsonString, new TypeToken<ArrayList<RutaDTO>>(){}.getType());
+
+            if (listaRutas == null || listaRutas.isEmpty()) {
+                return responseRequest.response(ResponseRequest.DataStatus.OK, "OK", "No hay rutas para actualizar");
+            }
+
+            try (Connection conexion = FirebirdConnector.getConnection();
+                 PreparedStatement preparedStatement = conexion.prepareStatement(sql)) {
+
+                for (RutaDTO ruta : listaRutas) {
+                    preparedStatement.setString(1, ruta.getEstatusCliente());
+                    preparedStatement.setDouble(2, ruta.getLatitudPedidoEntregado());
+                    preparedStatement.setDouble(3, ruta.getLongitudPedidoEntregado());
+                    preparedStatement.setBoolean(4, ruta.isEsMock());
+                    preparedStatement.setDouble(5, ruta.getPrecision());
+                    preparedStatement.setInt(6, ruta.getRutaMapsOrdenId());
+
+                    preparedStatement.addBatch();
+                }
+
+                preparedStatement.executeBatch();
+            }
+
+            return responseRequest.response(ResponseRequest.DataStatus.OK, "OK", "Visitas actualizadas");
+
+        } catch (JsonSyntaxException | SQLException exception) {
+            Resources.logger.error("Excepcion en estatusRuta: " + exception.getMessage(), exception);
+            return responseRequest.response(
+                ResponseRequest.DataStatus.ERROR, 
+                null, 
+                "Error al procesar Cobros x depositar " + exception.getMessage()
+            );
+        }
+    }
+    
+    public String cobranzaRutasXAgenteDiario(int vendedorId) {
+        String sqlDocs = "SELECT DOCTO_CC_ID FROM CXC_EN_RUTA_AGENTE_DIARIO WHERE VENDEDOR_ID = ? AND FECHA_ASIGNACION = CURRENT_DATE";
+
+        List<Integer> doctosList = new ArrayList<>();
+
+        try (Connection conexion = FirebirdConnector.getConnection();
+             PreparedStatement ps1 = conexion.prepareStatement(sqlDocs)) {
+
+            ps1.setInt(1, vendedorId);
+            try (ResultSet rs1 = ps1.executeQuery()) {
+                while (rs1.next()) {
+                    doctosList.add(rs1.getInt("DOCTO_CC_ID"));
+                }
+            }
+
+            List<CobranzaRefactor> listaCobranza = new ArrayList<>();
+
+            if (!doctosList.isEmpty()) {
+                // Construcción del IN (...)
+                String doctosCCId = doctosList.stream()
+                                              .map(String::valueOf)
+                                              .collect(Collectors.joining(","));
+
+                String sqlCobranza = "SELECT C.CLIENTE_ID, C.NOMBRE, B.DOCTO_CC_ID, B.FOLIO, B.FECHA_ELABORACION, " +
+                                     "B.FECHA_VENCIMIENTO, B.IMPORTE_CARGO, B.SALDO_CARGO, B.ATRASO, B.CONCEPTO_CC_ID, " +
+                                     "COALESCE(DC.NOMBRE_CONSIG, 'Dirección principal') AS NOMBRE_CONSIG " +
+                                     "FROM CLIENTES C " +
+                                     "LEFT JOIN CARGOS_CLIENTE_AH(C.CLIENTE_ID, CURRENT_DATE, CURRENT_DATE, 'N', 'S') B ON 1=1 " +
+                                     "LEFT JOIN DOCTOS_ENTRE_SIS DS ON (DS.DOCTO_DEST_ID = B.DOCTO_CC_ID AND DS.CLAVE_SIS_DEST = 'CC' AND DS.CLAVE_SIS_FTE = 'VE' AND DS.TIPO_DOCTO = 'C') " +
+                                     "LEFT JOIN DOCTOS_VE DVE ON (DVE.DOCTO_VE_ID = DS.DOCTO_FTE_ID) " +
+                                     "LEFT JOIN DIRS_CLIENTES DC ON (DC.DIR_CLI_ID = DVE.DIR_CLI_ID) " +
+                                     "WHERE B.DOCTO_CC_ID IS NOT NULL " +
+                                     "AND B.DOCTO_CC_ID IN (" + doctosCCId + ") " +
+                                     "ORDER BY B.ATRASO";
+
+                try (PreparedStatement ps2 = conexion.prepareStatement(sqlCobranza);
+                     ResultSet rs2 = ps2.executeQuery()) {
+
+                    while (rs2.next()) {
+                        CobranzaRefactor cobranza = new CobranzaRefactor();
+                        cobranza.setClienteId(rs2.getInt("CLIENTE_ID"));
+                        cobranza.setNombreCliente(rs2.getString("NOMBRE"));
+                        cobranza.setDoctoCCId(rs2.getInt("DOCTO_CC_ID"));
+                        cobranza.setFolio(rs2.getString("FOLIO"));
+                        cobranza.setFechaElaboracion(rs2.getDate("FECHA_ELABORACION"));
+                        cobranza.setFechaVencimiento(rs2.getDate("FECHA_VENCIMIENTO"));
+                        cobranza.setImporteCargo(rs2.getDouble("IMPORTE_CARGO"));
+                        cobranza.setSaldoCargo(rs2.getDouble("SALDO_CARGO"));
+                        cobranza.setAtraso(rs2.getInt("ATRASO"));
+                        cobranza.setConceptoCCId(rs2.getInt("CONCEPTO_CC_ID"));
+
+                        String nombreConsig = rs2.getString("NOMBRE_CONSIG");
+                        cobranza.setNombreConsignatario(nombreConsig != null ? nombreConsig : "");
+
+                        listaCobranza.add(cobranza);
+                    }
+                }
+            }
+
+            return gson.toJson(listaCobranza);
+
+        } catch (SQLException exception) {
+            Resources.logger.error("SUCEDIO UNA EXCEPCION al recuperar cobranza por agente por día: " + exception.getMessage(), exception);
             return null;
         }
     }
