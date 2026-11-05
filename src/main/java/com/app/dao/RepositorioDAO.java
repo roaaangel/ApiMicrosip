@@ -1602,11 +1602,13 @@ public class RepositorioDAO {
             }
 
             if (operaPop) {
-                sql.append("COALESCE(PT.IMPORTE_POP_GANADO_CON_IMP, 0.00) AS IMPORTE_POP_GANADO_CON_IMP, ")
+                //sql.append("COALESCE(PT.IMPORTE_POP_GANADO_CON_IMP, 0.00) AS IMPORTE_POP_GANADO_CON_IMP, ")
+                sql.append("COALESCE(PT.IMPORTE_POP_GANADO, 0.00) AS IMPORTE_POP_GANADO, ")
                    .append("COALESCE(PT.ESTATUS_POP, '') AS ESTATUS_POP, ")
                    .append("COALESCE(PT.MONTO_MINIMO_VENTA, 0.00) AS MONTO_MINIMO_VENTA ");
             } else {
-                sql.append("0.00 AS IMPORTE_POP_GANADO_CON_IMP, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
+                //sql.append("0.00 AS IMPORTE_POP_GANADO_CON_IMP, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
+                sql.append("0.00 AS IMPORTE_POP_GANADO, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
             }
 
             sql.append("FROM CLIENTES_AH C ");
@@ -1669,7 +1671,8 @@ public class RepositorioDAO {
                         cliente.setLimiteCredito(resultSet.getDouble("LIMITE_CREDITO"));
                         cliente.setEstatus(resultSet.getString("ESTATUS"));
                         cliente.setMonedaId(resultSet.getInt("MONEDA_ID"));
-                        cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO_CON_IMP"));
+                        //cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO_CON_IMP"));
+                        cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO"));
                         cliente.setEstatusPOP(resultSet.getString("ESTATUS_POP"));
                         cliente.setMontoMinimoVenta(resultSet.getDouble("MONTO_MINIMO_VENTA"));
 
@@ -1720,11 +1723,13 @@ public class RepositorioDAO {
             }
 
             if (operaPop) {
-                sql.append("COALESCE(PT.IMPORTE_POP_GANADO_CON_IMP, 0.00) AS IMPORTE_POP_GANADO_CON_IMP, ")
+                //sql.append("COALESCE(PT.IMPORTE_POP_GANADO_CON_IMP, 0.00) AS IMPORTE_POP_GANADO_CON_IMP, ")
+                sql.append("COALESCE(PT.IMPORTE_POP_GANADO, 0.00) AS IMPORTE_POP_GANADO, ")
                    .append("COALESCE(PT.ESTATUS_POP, '') AS ESTATUS_POP, ")
                    .append("COALESCE(PT.MONTO_MINIMO_VENTA, 0.00) AS MONTO_MINIMO_VENTA ");
             } else {
-                sql.append("0.00 AS IMPORTE_POP_GANADO_CON_IMP, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
+                //sql.append("0.00 AS IMPORTE_POP_GANADO_CON_IMP, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
+                sql.append("0.00 AS IMPORTE_POP_GANADO, '' AS ESTATUS_POP, 0.00 AS MONTO_MINIMO_VENTA ");
             }
 
             sql.append("FROM CLIENTES_AH C ");
@@ -1783,7 +1788,8 @@ public class RepositorioDAO {
                         cliente.setLimiteCredito(resultSet.getDouble("LIMITE_CREDITO"));
                         cliente.setEstatus(resultSet.getString("ESTATUS"));
                         cliente.setMonedaId(resultSet.getInt("MONEDA_ID"));
-                        cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO_CON_IMP"));
+                        //cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO_CON_IMP"));
+                        cliente.setSaldoPOP(resultSet.getDouble("IMPORTE_POP_GANADO"));
                         cliente.setEstatusPOP(resultSet.getString("ESTATUS_POP"));
                         cliente.setMontoMinimoVenta(resultSet.getDouble("MONTO_MINIMO_VENTA"));
 
