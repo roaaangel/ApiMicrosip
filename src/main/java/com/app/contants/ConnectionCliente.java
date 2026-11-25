@@ -1,7 +1,8 @@
 package com.app.contants;
 
 public final class ConnectionCliente {
-    /*public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    //public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    /*public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos 2026/P.FDB";
     public static final String USSER = "SYSDBA";
     public static final String PASSWORD = "masterkey";*/
     
@@ -45,9 +46,9 @@ public final class ConnectionCliente {
     
     
     //8.- Conexion SUNEGO_PUEBLA    
-    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos/SUNEGO.FDB";    
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos/SUNEGO.FDB";    
     public static String USSER = "SYSDBA";     
-    public static String PASSWORD = "$un&g@";
+    public static String PASSWORD = "$un&g@";*/
     
     //9.- CLIENTE DIAKONIA
     /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos/DIAKONIA.FDB";
@@ -74,6 +75,15 @@ public final class ConnectionCliente {
     public static String USSER = "SYSDBA"; 
     public static String PASSWORD = "Ferre26Mx8";*/
            
+    //CLIENTE ACEROS Y MATERIALES DIAZ
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:M:/Microsip datos/ACEROS Y MATERIALES DIAZ.FDB";
+    public static String USSER = "SYSDBA"; 
+    public static String PASSWORD = "amdoco.13";*/
+    
+    // DISTRIBUCIONES FAMOSA
+    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:G:/Microsip datos/FAMOSA.fdb";
+    public static String USSER = "SYSDBA"; 
+    public static String PASSWORD = "wIqZ1ZJV=7h-Usih";
     private ConnectionCliente() {
         // clase utilitaria, no instanciable
     }

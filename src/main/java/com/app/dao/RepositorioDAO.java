@@ -1807,12 +1807,17 @@ public class RepositorioDAO {
     }
     
     public String clientesEmitenFactura(int vendedorId) {
-        String sql = "SELECT LC.CLIENTE_ID, B.VALOR_DESPLEGADO " +
+        /*String sql = "SELECT LC.CLIENTE_ID, B.VALOR_DESPLEGADO " +
                      "FROM LIBRES_CLIENTES LC " +
                      "JOIN LISTAS_ATRIBUTOS B ON B.LISTA_ATRIB_ID = LC.EMITE_FACTURA " +
                      "INNER JOIN CLIENTES C ON C.CLIENTE_ID = LC.CLIENTE_ID " +
-                     "WHERE C.VENDEDOR_ID = ?";
+                     "WHERE C.VENDEDOR_ID = ?";*/
 
+        String sql = "SELECT CLIENTE_ID, 'NO' AS VALOR_DESPLEGADO " +
+                     "FROM CLIENTES " +
+                     "WHERE VENDEDOR_ID = ?";
+
+        
         try (Connection connection = FirebirdConnector.getConnection()) {
             if (connection == null) {
                 System.out.println("ERROR: No se pudo obtener la conexión a Firebird.");
