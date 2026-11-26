@@ -1,10 +1,10 @@
 package com.app.contants;
 
 public final class ConnectionCliente {
-    //public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
-    /*public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos 2026/P.FDB";
+    public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:/usr/local/firebird/databases/Bryka.fdb?encoding=WIN1252";
+    //public static final String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:D:/Microsip datos/P.FDB";
     public static final String USSER = "SYSDBA";
-    public static final String PASSWORD = "masterkey";*/
+    public static final String PASSWORD = "masterkey";
     
     
     
@@ -81,9 +81,9 @@ public final class ConnectionCliente {
     public static String PASSWORD = "amdoco.13";*/
     
     // DISTRIBUCIONES FAMOSA
-    public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:G:/Microsip datos/FAMOSA.fdb";
+    /*public static String CONNECTION_BD = "jdbc:firebirdsql:localhost/3050:G:/Microsip datos/FAMOSA.fdb";
     public static String USSER = "SYSDBA"; 
-    public static String PASSWORD = "wIqZ1ZJV=7h-Usih";
+    public static String PASSWORD = "wIqZ1ZJV=7h-Usih";*/
     private ConnectionCliente() {
         // clase utilitaria, no instanciable
     }
